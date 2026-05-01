@@ -1,112 +1,142 @@
-
-# ========= Benchmark Envs (XLA+PyTorch together) and (TVM separate) =========
-# Usage:
-#   make xla_env         # creates .venv_xla and installs requirements_xla + CUDA-enabled PyTorch
-#   make tvm_env         # creates .venv_tvm and installs requirements_tvm
-#   make test_xla        # runs run_bench.py for XLA+Torch (no TVM)
-#   make test_tvm        # runs run_bench.py for TVM (no XLA/Inductor)
-#   make show_versions_xla / show_versions_tvm  # print key libs versions
-#   make lock_xla / lock_tvm  # export exact resolved envs
+# ========= CNN Compilers Benchmark: envs + smoke tests =========
+# Quick commands:
+#   make conda_xla_env CONDA_ENV_XLA=teste_xla
+#   make conda_check_xla CONDA_ENV_XLA=teste_xla
+#   make conda_smoke_xla_torch CONDA_ENV_XLA=teste_xla
 #
-# Notes:
-#  - XLA (JAX) and PyTorch share the same env to ensure identical versions of Python/CUDA/cuDNN/etc.
-#  - TVM runs in its own env (as requested), using the working combo you provided.
-#  - The Makefile tries multiple CUDA channels for PyTorch (cu128→cu126→cu124→cu121).
-#    You can override with: make TORCH_CU_CHOICES="cu126 cu124"
-#
-# Variables you may override:
-#   PYTHON_BIN=python3.11        # interpreter for XLA+Torch env
-#   PYTHON_TVM_BIN=python3.10    # interpreter for TVM env (defaults to PYTHON_BIN)
-#   TORCH_VERSION=2.9.0
-#   TORCHVISION_VERSION=0.24.0
-#   TORCH_CU_CHOICES="cu128 cu126 cu124 cu121"
+# The JAX/XLA memory exports below are intentionally enabled by default.
+# They reduce GPU memory preallocation and avoid failures when JAX and PyTorch
+# are tested in the same machine/session.
 
-PYTHON_BIN ?= python3.11
+SHELL := /bin/bash
+.SHELLFLAGS := -eu -o pipefail -c
+
+# -------------------- Files/env names --------------------
+PYTHON_VERSION ?= 3.10.18
+PYTHON_BIN ?= python3.10
 PYTHON_TVM_BIN ?= $(PYTHON_BIN)
-VENV_XLA := .venv_xla
-VENV_TVM := .venv_tvm
-REQ_XLA := envs/requirements_xla.txt
-REQ_TVM := envs/requirements_tvm.txt
 
-TORCH_VERSION ?= 2.9.0
-TORCHVISION_VERSION ?= 0.24.0
-TORCH_CU_CHOICES ?= cu128 cu126 cu124 cu121
+CONDA ?= conda
+CONDA_ENV_XLA ?= tcc_xla
+CONDA_ENV_TVM ?= tcc_tvm
 
-.PHONY: all xla_env tvm_env test_xla test_tvm show_versions_xla show_versions_tvm lock_xla lock_tvm clean
+VENV_XLA ?= .venv_xla
+VENV_TVM ?= .venv_tvm
 
-all: xla_env tvm_env
+REQ_XLA ?= requirements_xla.txt
+REQ_TVM ?= requirements_tvm.txt
 
-# -------------------- XLA + PyTorch (same env) --------------------
+# -------------------- JAX/XLA GPU memory policy --------------------
+# Must be visible before the first `import jax` in each Python process.
+XLA_PYTHON_CLIENT_PREALLOCATE ?= false
+XLA_PYTHON_CLIENT_MEM_FRACTION ?= 0.40
+export XLA_PYTHON_CLIENT_PREALLOCATE
+export XLA_PYTHON_CLIENT_MEM_FRACTION
+
+# Small default smoke-test shape to make validation fast.
+BENCH_QUICK_ARGS ?= --device cuda --model resnet18 --dtype fp32 --batch 1 --height 224 --width 224 --warmup 3 --iters 5
+
+.PHONY: help \
+        conda_xla_env conda_check_xla conda_smoke_xla conda_smoke_torch conda_smoke_xla_torch conda_clean_xla \
+        xla_env check_xla smoke_xla smoke_torch smoke_xla_torch \
+        tvm_env smoke_tvm show_versions_xla show_versions_conda_xla lock_xla clean
+
+help:
+	@echo "CNN Compilers Benchmark"
+	@echo ""
+	@echo "Conda workflow recomendado:"
+	@echo "  make conda_xla_env CONDA_ENV_XLA=teste_xla"
+	@echo "  make conda_check_xla CONDA_ENV_XLA=teste_xla"
+	@echo "  make conda_smoke_xla_torch CONDA_ENV_XLA=teste_xla"
+	@echo ""
+	@echo "Venv workflow alternativo:"
+	@echo "  make xla_env"
+	@echo "  make check_xla"
+	@echo "  make smoke_xla_torch"
+	@echo ""
+	@echo "Variáveis úteis:"
+	@echo "  REQ_XLA=$(REQ_XLA)"
+	@echo "  CONDA_ENV_XLA=$(CONDA_ENV_XLA)"
+	@echo "  XLA_PYTHON_CLIENT_PREALLOCATE=$(XLA_PYTHON_CLIENT_PREALLOCATE)"
+	@echo "  XLA_PYTHON_CLIENT_MEM_FRACTION=$(XLA_PYTHON_CLIENT_MEM_FRACTION)"
+	@echo "  BENCH_QUICK_ARGS=$(BENCH_QUICK_ARGS)"
+
+# -------------------- Conda: XLA + PyTorch --------------------
+conda_xla_env:
+	$(CONDA) create -n $(CONDA_ENV_XLA) python=$(PYTHON_VERSION) pip -y
+	$(CONDA) run -n $(CONDA_ENV_XLA) python -m pip install --upgrade pip wheel setuptools
+	$(CONDA) run -n $(CONDA_ENV_XLA) python -m pip install -r $(REQ_XLA)
+	@echo "[OK] Conda env criado: $(CONDA_ENV_XLA)"
+	@echo "Ative com: conda activate $(CONDA_ENV_XLA)"
+
+conda_check_xla:
+	$(CONDA) run -n $(CONDA_ENV_XLA) python -m pip check
+	$(CONDA) run -n $(CONDA_ENV_XLA) python -c "import os, torch, jax; print('XLA_PYTHON_CLIENT_PREALLOCATE=', os.environ.get('XLA_PYTHON_CLIENT_PREALLOCATE')); print('XLA_PYTHON_CLIENT_MEM_FRACTION=', os.environ.get('XLA_PYTHON_CLIENT_MEM_FRACTION')); print('torch', torch.__version__, 'cuda', torch.version.cuda, 'cuda_available', torch.cuda.is_available(), 'cudnn', torch.backends.cudnn.version()); assert torch.cuda.is_available(), 'PyTorch nao encontrou CUDA'; print('jax', jax.__version__, 'backend', jax.default_backend(), 'devices', jax.devices()); assert jax.devices('gpu'), 'JAX nao encontrou GPU'"
+
+conda_smoke_xla:
+	$(CONDA) run -n $(CONDA_ENV_XLA) python run_bench.py $(BENCH_QUICK_ARGS) --no-tvm --no-inductor --output out_smoke_xla.json
+	@echo "[OK] Gerado: out_smoke_xla.json"
+
+conda_smoke_torch:
+	$(CONDA) run -n $(CONDA_ENV_XLA) python run_bench.py $(BENCH_QUICK_ARGS) --no-tvm --no-xla --output out_smoke_torch.json
+	@echo "[OK] Gerado: out_smoke_torch.json"
+
+conda_smoke_xla_torch:
+	$(CONDA) run -n $(CONDA_ENV_XLA) python run_bench.py $(BENCH_QUICK_ARGS) --no-tvm --output out_smoke_xla_torch.json
+	@echo "[OK] Gerado: out_smoke_xla_torch.json"
+
+conda_clean_xla:
+	$(CONDA) env remove -n $(CONDA_ENV_XLA) -y
+
+# -------------------- venv alternative: XLA + PyTorch --------------------
 xla_env: $(VENV_XLA)/bin/python
 
 $(VENV_XLA)/bin/python: $(REQ_XLA)
 	$(PYTHON_BIN) -m venv $(VENV_XLA)
-	. $(VENV_XLA)/bin/activate && pip install -U pip wheel setuptools
-	. $(VENV_XLA)/bin/activate && pip install -r $(REQ_XLA)
-	@set -e; \
-	for CU in $(TORCH_CU_CHOICES); do \
-	  echo ">> Trying PyTorch CUDA channel $$CU"; \
-	  if . $(VENV_XLA)/bin/activate && pip install --index-url https://download.pytorch.org/whl/$$CU torch==$(TORCH_VERSION) torchvision==$(TORCHVISION_VERSION); then \
-	    echo ">> Installed PyTorch $(TORCH_VERSION) / torchvision $(TORCHVISION_VERSION) from $$CU"; \
-	    break; \
-	  fi; \
-	done
-	# Sanity checks (GPU presence for both frameworks)
-	. $(VENV_XLA)/bin/activate && python - <<'PY'
-import torch, jax
-assert torch.cuda.is_available(), "PyTorch não encontrou CUDA"
-print("PyTorch OK | CUDA:", torch.version.cuda, "| cuDNN:", torch.backends.cudnn.version())
-d = jax.devices('gpu')
-assert d, "JAX não encontrou GPU"
-print("JAX OK | GPUs:", d)
-PY
+	. $(VENV_XLA)/bin/activate && python -m pip install --upgrade pip wheel setuptools
+	. $(VENV_XLA)/bin/activate && python -m pip install -r $(REQ_XLA)
+	@echo "[OK] venv criado: $(VENV_XLA)"
 
-# -------------------- TVM (separate env) --------------------
+check_xla: xla_env
+	. $(VENV_XLA)/bin/activate && python -m pip check
+	. $(VENV_XLA)/bin/activate && python -c "import os, torch, jax; print('XLA_PYTHON_CLIENT_PREALLOCATE=', os.environ.get('XLA_PYTHON_CLIENT_PREALLOCATE')); print('XLA_PYTHON_CLIENT_MEM_FRACTION=', os.environ.get('XLA_PYTHON_CLIENT_MEM_FRACTION')); print('torch', torch.__version__, 'cuda', torch.version.cuda, 'cuda_available', torch.cuda.is_available(), 'cudnn', torch.backends.cudnn.version()); assert torch.cuda.is_available(), 'PyTorch nao encontrou CUDA'; print('jax', jax.__version__, 'backend', jax.default_backend(), 'devices', jax.devices()); assert jax.devices('gpu'), 'JAX nao encontrou GPU'"
+
+smoke_xla: xla_env
+	. $(VENV_XLA)/bin/activate && python run_bench.py $(BENCH_QUICK_ARGS) --no-tvm --no-inductor --output out_smoke_xla.json
+	@echo "[OK] Gerado: out_smoke_xla.json"
+
+smoke_torch: xla_env
+	. $(VENV_XLA)/bin/activate && python run_bench.py $(BENCH_QUICK_ARGS) --no-tvm --no-xla --output out_smoke_torch.json
+	@echo "[OK] Gerado: out_smoke_torch.json"
+
+smoke_xla_torch: xla_env
+	. $(VENV_XLA)/bin/activate && python run_bench.py $(BENCH_QUICK_ARGS) --no-tvm --output out_smoke_xla_torch.json
+	@echo "[OK] Gerado: out_smoke_xla_torch.json"
+
+# -------------------- TVM, optional/separate --------------------
 tvm_env: $(VENV_TVM)/bin/python
 
 $(VENV_TVM)/bin/python: $(REQ_TVM)
 	$(PYTHON_TVM_BIN) -m venv $(VENV_TVM)
-	. $(VENV_TVM)/bin/activate && pip install -U pip wheel setuptools
-	. $(VENV_TVM)/bin/activate && pip install -r $(REQ_TVM)
+	. $(VENV_TVM)/bin/activate && python -m pip install --upgrade pip wheel setuptools
+	. $(VENV_TVM)/bin/activate && python -m pip install -r $(REQ_TVM)
+	@echo "[OK] venv TVM criado: $(VENV_TVM)"
 
-# -------------------- Quick smoke tests --------------------
-test_xla: xla_env
-	. $(VENV_XLA)/bin/activate && python run_bench.py --no-tvm --device cuda --model resnet18 --output out_xla_torch_resnet18.json
-	. $(VENV_XLA)/bin/activate && python run_bench.py --no-tvm --device cuda --model resnet50 --output out_xla_torch_resnet50.json
+smoke_tvm: tvm_env
+	. $(VENV_TVM)/bin/activate && python run_bench.py $(BENCH_QUICK_ARGS) --no-xla --no-inductor --output out_smoke_tvm.json
+	@echo "[OK] Gerado: out_smoke_tvm.json"
 
-test_tvm: tvm_env
-	. $(VENV_TVM)/bin/activate && python run_bench.py --no-xla --no-inductor --device cuda --model resnet18 --output out_tvm_resnet18.json
-	. $(VENV_TVM)/bin/activate && python run_bench.py --no-xla --no-inductor --device cuda --model resnet50 --output out_tvm_resnet50.json
-
-# -------------------- Diagnostics --------------------
+# -------------------- Diagnostics/locks --------------------
 show_versions_xla: xla_env
-	. $(VENV_XLA)/bin/activate && python - <<'PY'
-import importlib.metadata as md, platform, torch
-print("python", platform.python_version())
-for p in ("torch","torchvision","jax","jaxlib","jax-cuda12-pjrt","nvidia-cublas-cu12","nvidia-cudnn-cu12","nvidia-cusparse-cu12","nvidia-nvjitlink-cu12"):
-    try: print(p, md.version(p))
-    except: print(p, "N/A")
-print("torch.cuda", torch.version.cuda)
-print("cudnn_version", torch.backends.cudnn.version())
-PY
+	. $(VENV_XLA)/bin/activate && python -c "import importlib.metadata as md, platform, torch, jax; print('python', platform.python_version()); print('torch', torch.__version__, 'torch_cuda', torch.version.cuda, 'cudnn', torch.backends.cudnn.version()); print('jax', jax.__version__, 'backend', jax.default_backend(), 'devices', jax.devices()); [print(p, md.version(p)) for p in ('jaxlib','jax-cuda12-pjrt','jax-cuda12-plugin','nvidia-cublas-cu12','nvidia-cudnn-cu12','triton') if md.version(p)]"
 
-show_versions_tvm: tvm_env
-	. $(VENV_TVM)/bin/activate && python - <<'PY'
-import importlib.metadata as md, platform
-print("python", platform.python_version())
-for p in ("apache-tvm","torch","torchvision","nvidia-cublas-cu12","nvidia-cudnn-cu12"):
-    try: print(p, md.version(p))
-    except: print(p, "N/A")
-PY
+show_versions_conda_xla:
+	$(CONDA) run -n $(CONDA_ENV_XLA) python -c "import importlib.metadata as md, platform, torch, jax; print('python', platform.python_version()); print('torch', torch.__version__, 'torch_cuda', torch.version.cuda, 'cudnn', torch.backends.cudnn.version()); print('jax', jax.__version__, 'backend', jax.default_backend(), 'devices', jax.devices()); [print(p, md.version(p)) for p in ('jaxlib','jax-cuda12-pjrt','jax-cuda12-plugin','nvidia-cublas-cu12','nvidia-cudnn-cu12','triton') if md.version(p)]"
 
-# -------------------- Lock exact envs --------------------
 lock_xla: xla_env
-	. $(VENV_XLA)/bin/activate && pip freeze > envs/requirements_xla.lock.txt
-	@echo "Wrote requirements_xla.lock.txt"
-
-lock_tvm: tvm_env
-	. $(VENV_TVM)/bin/activate && pip freeze > envs/requirements_tvm.lock.txt
-	@echo "Wrote requirements_tvm.lock.txt"
+	mkdir -p env_reports
+	. $(VENV_XLA)/bin/activate && python -m pip freeze > env_reports/requirements_xla.lock.txt
+	@echo "[OK] Wrote env_reports/requirements_xla.lock.txt"
 
 clean:
-	rm -rf $(VENV_XLA) $(VENV_TVM) out_*.json requirements_xla.lock.txt requirements_tvm.lock.txt
+	rm -rf $(VENV_XLA) $(VENV_TVM) out_*.json env_reports/requirements_xla.lock.txt
