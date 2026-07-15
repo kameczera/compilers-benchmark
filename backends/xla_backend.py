@@ -61,13 +61,19 @@ class HLOKernelCounter:
             "custom_targets_unicos": len(self.custom_calls),
         }
 
+def _hlo_summary_with_size(txt: str) -> Dict[str, Any]:
+    summary = HLOKernelCounter(txt).summary
+    summary["code_size_bytes"] = len(txt.encode("utf-8"))
+    summary["code_lines"] = txt.count("\n") + (1 if txt else 0)
+    return summary
+
 def _dump_hlo(lowered, out_path: Path) -> Dict[str, Any]:
     comp = lowered.compile()
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    if hasattr(comp, "as_text"):
-        out_path.write_text(comp.as_text(), encoding="utf-8")
-    kc = HLOKernelCounter(comp.as_text())
-    return {"path": str(out_path), "kernel_count": {"summary": kc.summary}}
+    txt = comp.as_text() if hasattr(comp, "as_text") else ""
+    if txt:
+        out_path.write_text(txt, encoding="utf-8")
+    return {"path": str(out_path), "kernel_count": {"summary": _hlo_summary_with_size(txt)}}
 
 def _dtype_map(dtype: str):
     if dtype == "bf16":
@@ -168,9 +174,8 @@ def run_xla(model_name: str = "resnet18",
             txt_unopt = lowered.as_text()
         p_unopt = out_dir / "fused_jit_unoptimized.hlo"
         p_unopt.write_text(txt_unopt, encoding="utf-8")
-        # contagem
-        kc_unopt = HLOKernelCounter(txt_unopt)
-        hlo_unopt_info = {"path": str(p_unopt), "kernel_count": {"summary": kc_unopt.summary}}
+        # contagem + tamanho do código
+        hlo_unopt_info = {"path": str(p_unopt), "kernel_count": {"summary": _hlo_summary_with_size(txt_unopt)}}
     except Exception:
         hlo_unopt_info = None
 
@@ -214,8 +219,7 @@ def run_xla(model_name: str = "resnet18",
             txt_opt = comp.as_text()
             p_opt = out_dir / "fused_jit_optimized.hlo"
             p_opt.write_text(txt_opt, encoding="utf-8")
-            kc_opt = HLOKernelCounter(txt_opt)
-            hlo_opt_info = {"path": str(p_opt), "kernel_count": {"summary": kc_opt.summary}}
+            hlo_opt_info = {"path": str(p_opt), "kernel_count": {"summary": _hlo_summary_with_size(txt_opt)}}
     except Exception:
         hlo_opt_info = None
 

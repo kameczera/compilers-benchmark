@@ -10,8 +10,16 @@ if __package__ is None or __package__ == "":
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Tuple
+
+# Precisa existir ANTES do primeiro `import torch` neste processo: desliga os
+# caches persistentes do TorchInductor (/tmp/torchinductor_$USER). Sem isso,
+# uma segunda execução reaproveita o cache, o codegen não roda, o output_code
+# sai vazio (contagem de kernels = 0) e o compile_ms fica subestimado.
+# Para reaproveitar o cache de propósito: TORCHINDUCTOR_FORCE_DISABLE_CACHES=0.
+os.environ.setdefault("TORCHINDUCTOR_FORCE_DISABLE_CACHES", "1")
 
 from backends.common import save_json, pretty_shape, auto_weights, Weights, recommend
 
@@ -114,7 +122,7 @@ def main():
 
     out_path = Path(args.output).resolve()
     save_json(str(out_path), results)
-    best = results.get("recommendation", {}).get("best")
+    best = results.get("recommendation", {}).get("best_at_runs_exec")
     if best:
         print(f"[OK] Saved: {out_path}")
         print(f"Best backend: {best.upper()}")

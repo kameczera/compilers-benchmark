@@ -13,7 +13,8 @@ SHELL := /bin/bash
 
 # -------------------- Files/env names --------------------
 PYTHON_VERSION ?= 3.10.18
-PYTHON_BIN ?= python3.10
+# Usa python3.10 se existir; senão cai para python3.11/python3.
+PYTHON_BIN ?= $(shell command -v python3.10 || command -v python3.11 || command -v python3)
 PYTHON_TVM_BIN ?= $(PYTHON_BIN)
 
 CONDA ?= conda
@@ -23,8 +24,12 @@ CONDA_ENV_TVM ?= tcc_tvm
 VENV_XLA ?= .venv_xla
 VENV_TVM ?= .venv_tvm
 
-REQ_XLA ?= requirements_xla.txt
-REQ_TVM ?= requirements_tvm.txt
+REQ_XLA ?= envs/requirements_xla.txt
+REQ_TVM ?= envs/requirements_tvm.txt
+
+# Checkout do TVM compilado do fonte (0.22.dev0, commit 3b60f1c).
+# O pacote pip `apache-tvm` (0.14) NAO serve: nao tem o modulo relax.
+TVM_HOME ?=
 
 # -------------------- JAX/XLA GPU memory policy --------------------
 # Must be visible before the first `import jax` in each Python process.
@@ -33,26 +38,36 @@ XLA_PYTHON_CLIENT_MEM_FRACTION ?= 0.40
 export XLA_PYTHON_CLIENT_PREALLOCATE
 export XLA_PYTHON_CLIENT_MEM_FRACTION
 
+# -------------------- TorchInductor cache policy --------------------
+# Sem isso o Inductor reaproveita o cache persistente (/tmp/torchinductor_$USER):
+# o codegen nao roda, o dump do output_code sai vazio (kernels = 0) e o
+# compile_ms fica subestimado. run_bench.py tambem seta este default.
+TORCHINDUCTOR_FORCE_DISABLE_CACHES ?= 1
+export TORCHINDUCTOR_FORCE_DISABLE_CACHES
+
 # Small default smoke-test shape to make validation fast.
 BENCH_QUICK_ARGS ?= --device cuda --model resnet18 --dtype fp32 --batch 1 --height 224 --width 224 --warmup 3 --iters 5
 
 .PHONY: help \
         conda_xla_env conda_check_xla conda_smoke_xla conda_smoke_torch conda_smoke_xla_torch conda_clean_xla \
         xla_env check_xla smoke_xla smoke_torch smoke_xla_torch \
-        tvm_env smoke_tvm show_versions_xla show_versions_conda_xla lock_xla clean
+        tvm_env smoke_tvm show_versions_xla show_versions_conda_xla lock_xla \
+        clean_inductor_cache clean
 
 help:
 	@echo "CNN Compilers Benchmark"
 	@echo ""
-	@echo "Conda workflow recomendado:"
+	@echo "Venv workflow (recomendado, ver README):"
+	@echo "  make xla_env"
+	@echo "  make check_xla"
+	@echo "  make smoke_torch / smoke_xla / smoke_xla_torch"
+	@echo "  make tvm_env && make smoke_tvm TVM_HOME=/caminho/para/tvm"
+	@echo "  make clean_inductor_cache   # antes de cada medicao do PyTorch!"
+	@echo ""
+	@echo "Conda workflow alternativo:"
 	@echo "  make conda_xla_env CONDA_ENV_XLA=teste_xla"
 	@echo "  make conda_check_xla CONDA_ENV_XLA=teste_xla"
 	@echo "  make conda_smoke_xla_torch CONDA_ENV_XLA=teste_xla"
-	@echo ""
-	@echo "Venv workflow alternativo:"
-	@echo "  make xla_env"
-	@echo "  make check_xla"
-	@echo "  make smoke_xla_torch"
 	@echo ""
 	@echo "Variáveis úteis:"
 	@echo "  REQ_XLA=$(REQ_XLA)"
@@ -123,7 +138,8 @@ $(VENV_TVM)/bin/python: $(REQ_TVM)
 	@echo "[OK] venv TVM criado: $(VENV_TVM)"
 
 smoke_tvm: tvm_env
-	. $(VENV_TVM)/bin/activate && python run_bench.py $(BENCH_QUICK_ARGS) --no-xla --no-inductor --output out_smoke_tvm.json
+	@test -n "$(TVM_HOME)" || { echo "ERRO: defina TVM_HOME (checkout do TVM compilado do fonte), ex.: make smoke_tvm TVM_HOME=$$HOME/tvm"; exit 1; }
+	. $(VENV_TVM)/bin/activate && PYTHONPATH=$(TVM_HOME)/python:$(TVM_HOME)/build:$$PYTHONPATH python run_bench.py $(BENCH_QUICK_ARGS) --no-xla --no-inductor --output out_smoke_tvm.json
 	@echo "[OK] Gerado: out_smoke_tvm.json"
 
 # -------------------- Diagnostics/locks --------------------
@@ -137,6 +153,14 @@ lock_xla: xla_env
 	mkdir -p env_reports
 	. $(VENV_XLA)/bin/activate && python -m pip freeze > env_reports/requirements_xla.lock.txt
 	@echo "[OK] Wrote env_reports/requirements_xla.lock.txt"
+
+# Remove os caches persistentes do TorchInductor/Triton. Rode antes de cada
+# medicao de compile_ms/kernels do PyTorch para garantir codegen "frio".
+clean_inductor_cache:
+	rm -rf /tmp/torchinductor_$$USER
+	rm -rf $${XDG_CACHE_HOME:-$$HOME/.cache}/torch/inductor
+	rm -rf $$HOME/.triton/cache
+	@echo "[OK] Caches do TorchInductor/Triton removidos"
 
 clean:
 	rm -rf $(VENV_XLA) $(VENV_TVM) out_*.json env_reports/requirements_xla.lock.txt

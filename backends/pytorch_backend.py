@@ -72,6 +72,56 @@ def _save_text(path: Path, txt: str) -> str:
     path.write_text(txt, encoding="utf-8")
     return str(path)
 
+def _pycodecache_files() -> set:
+    """Arquivos .py gerados pelo Inductor já carregados neste processo."""
+    try:
+        from torch._inductor.codecache import PyCodeCache
+    except Exception:
+        return set()
+    mods = getattr(PyCodeCache, "modules", None)
+    if mods is None:
+        mods = list(getattr(PyCodeCache, "cache", {}).values())
+    files = set()
+    for m in mods:
+        f = getattr(m, "__file__", None)
+        if f:
+            files.add(f)
+    return files
+
+def _inductor_cache_dir() -> str:
+    try:
+        from torch._inductor.runtime.runtime_utils import cache_dir
+        return cache_dir()
+    except Exception:
+        pass
+    try:
+        from torch._inductor.codecache import cache_dir  # versões antigas
+        return cache_dir()
+    except Exception:
+        import getpass, tempfile
+        return os.path.join(tempfile.gettempdir(), f"torchinductor_{getpass.getuser()}")
+
+def _new_inductor_files(files_before: set, t_start_s: float) -> list:
+    """
+    Arquivos .py gerados pelo Inductor desde t_start_s: união do PyCodeCache
+    (kernels Triton) com uma varredura por mtime no diretório de cache (o
+    módulo wrapper, com call()/extern_kernels, não passa pelo PyCodeCache
+    em versões recentes do torch).
+    """
+    found = set(_pycodecache_files() - files_before)
+    try:
+        root = Path(_inductor_cache_dir())
+        if root.is_dir():
+            for p in root.rglob("*.py"):
+                try:
+                    if p.stat().st_mtime >= t_start_s - 1.0:
+                        found.add(str(p))
+                except OSError:
+                    pass
+    except Exception:
+        pass
+    return sorted(found)
+
 def _count_triton_from_text(txt: str) -> Dict[str, Any]:
     # txt é um arquivo .py com kernels gerados (output_code)
     try:
@@ -142,17 +192,31 @@ def fold_bn_inplace(model: nn.Module) -> nn.Module:
     return model
 
 
-def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag: str) -> Tuple[float, float, float, str, Dict[str, Any]]:
+def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag: str,
+                           iters: int = 50) -> Tuple[float, float, float, str, Dict[str, Any]]:
     """
     Compila com Inductor, captura 'output_code' (Triton + extern) e mede tempos.
     Retorna: (compile_ms_proxy, ttfb_ms, exec_ms_avg, code_path, kernel_counts)
     """
-    # habilita dump de código no stdout
-    os.environ["TORCH_LOGS"] = "output_code"
-    os.environ["TORCHINDUCTOR_DISABLE_CACHE"] = "1"
+    # Caches persistentes (FXGraphCache em /tmp/torchinductor_$USER) pulam o
+    # codegen: compile_ms sai subestimado e nenhum output_code é gerado.
+    # TORCHINDUCTOR_FORCE_DISABLE_CACHES precisa existir antes do import torch
+    # (run_bench.py faz isso); aqui reforçamos via config em runtime.
+    try:
+        import torch._inductor.config as inductor_config
+        inductor_config.force_disable_caches = True
+    except Exception:
+        pass
+    try:
+        torch._dynamo.reset()
+    except Exception:
+        pass
+
+    files_before = _pycodecache_files()
+    t_scan0 = time.time()
     compiled = torch.compile(model, backend="inductor", mode="max-autotune")
 
-    # primeira chamada = compile + run (capturando o output_code)
+    # primeira chamada = compile + run
     buf = io.StringIO()
     with torch.inference_mode(), contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
         t0 = now_ms()
@@ -162,18 +226,65 @@ def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag
         sync_cuda()
         t1 = now_ms()
     ttfb_ms = t1 - t0
-    code_txt = buf.getvalue()
 
-    # salva código e conta kernels
+    # O código gerado é lido direto dos arquivos que o Inductor produziu
+    # (wrapper com call()/extern_kernels + kernels Triton), em vez de depender
+    # de TORCH_LOGS=output_code no stdout — TORCH_LOGS só tem efeito se setado
+    # antes do import torch.
+    srcs = []
+    for f in _new_inductor_files(files_before, t_scan0):
+        try:
+            srcs.append((f, Path(f).read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    # wrapper (def call(...)) primeiro, kernels depois
+    srcs.sort(key=lambda fs: (0 if "def call(" in fs[1] else 1, fs[0]))
+    parts = [f"# ===== inductor generated file: {f} =====\n{src}" for f, src in srcs]
+    code_txt = "\n\n".join(parts)
+    capture_method = "inductor_cache_files"
+    if not code_txt.strip():
+        code_txt = buf.getvalue()
+        srcs = [("stdout", code_txt)]
+        capture_method = "stdout_fallback"
+
+    # salva código e conta kernels (por arquivo, somando os contadores)
     out_dir.mkdir(parents=True, exist_ok=True)
     code_path = out_dir / f"{tag}_inductor_output_code.py"
     _save_text(code_path, code_txt)
-    kc = _count_triton_from_text(code_txt)
+    triton_runs, extern_calls, fused_ops = {}, {}, {}
+    for _, src in srcs:
+        c = _count_triton_from_text(src)
+        for k, v in c["details"]["triton_runs"].items():
+            triton_runs[k] = triton_runs.get(k, 0) + v
+        for k, v in c["details"]["extern_calls"].items():
+            extern_calls[k] = extern_calls.get(k, 0) + v
+        fused_ops.update(c["details"]["fused_ops"])
+    kc = {
+        "summary": {
+            "triton_launches_total": sum(triton_runs.values()),
+            "triton_kernels_unicos": len(triton_runs),
+            "extern_kernels_total": sum(extern_calls.values()),
+            "extern_funcs_unicas": len(extern_calls),
+            "code_size_bytes": len(code_txt.encode("utf-8")),
+            "code_lines": code_txt.count("\n") + (1 if code_txt else 0),
+        },
+        "details": {
+            "triton_runs": triton_runs,
+            "extern_calls": extern_calls,
+            "fused_ops": fused_ops,
+        },
+        "capture_method": capture_method,
+    }
+    if kc["summary"]["triton_launches_total"] == 0 and kc["summary"]["extern_kernels_total"] == 0:
+        kc["warning"] = (
+            "Nenhum kernel capturado: provavelmente o cache do TorchInductor foi "
+            "reaproveitado e o codegen nao rodou. Rode 'make clean_inductor_cache' "
+            "e repita com TORCHINDUCTOR_FORCE_DISABLE_CACHES=1 (ver README)."
+        )
 
     # execuções subsequentes
     with torch.inference_mode():
         t0 = now_ms()
-        iters = 50
         for _ in range(iters):
             y = compiled(x)
         sync_cuda()
@@ -196,13 +307,23 @@ def run_pytorch(model_name: str = "resnet18",
 
     N, C, H, W = shape_nchw
     torch.backends.cudnn.benchmark = True
+    # Condições padronizadas do artigo: TF32 habilitado e layout channels_last.
+    # (cudnn conv já usa TF32 por default; isto habilita também para matmul.)
+    try:
+        torch.set_float32_matmul_precision("high")
+    except Exception:
+        pass
     dev = torch.device(device if torch.cuda.is_available() or device == "cpu" else "cpu")
 
     # modelos
     base = get_resnet(model_name).eval()
     base = to_dtype(base, dtype).to(dev)
+    if dev.type == "cuda":
+        base = base.to(memory_format=torch.channels_last)
 
     x = torch.randn(N, C, H, W, device=dev, dtype=getattr(torch, dtype.replace("fp", "float")))
+    if dev.type == "cuda":
+        x = x.to(memory_format=torch.channels_last)
     for _ in range(max(1, warmup // 2)):
         with torch.inference_mode():
             _ = base(x)
@@ -229,7 +350,7 @@ def run_pytorch(model_name: str = "resnet18",
     out_dir = Path("ir_dumps") / "inductor" / f"{stamp}_{model_name}_{pretty_shape(shape_nchw)}"
 
     # ----- Inductor padrão -----
-    compile_ms, ttfb_ms, exec_ms, code_path, kcount = _compile_and_dump_code(base, x, out_dir, "fused")
+    compile_ms, ttfb_ms, exec_ms, code_path, kcount = _compile_and_dump_code(base, x, out_dir, "fused", iters=iters)
     energy = estimate_energy_j(ttfb_ms, exec_ms, iters, power_compile_w, power_exec_w)
     out["shapes"][pretty_shape(shape_nchw)]["fused_inductor"] = {
         "ttfb_ms": float(ttfb_ms),
@@ -242,7 +363,9 @@ def run_pytorch(model_name: str = "resnet18",
     # ----- Inductor com BN fold -----
     folded = fold_bn_inplace(get_resnet(model_name)).eval().to(dev)
     folded = to_dtype(folded, dtype)
-    compile_ms2, ttfb_ms2, exec_ms2, code_path2, kcount2 = _compile_and_dump_code(folded, x, out_dir, "fused_fold")
+    if dev.type == "cuda":
+        folded = folded.to(memory_format=torch.channels_last)
+    compile_ms2, ttfb_ms2, exec_ms2, code_path2, kcount2 = _compile_and_dump_code(folded, x, out_dir, "fused_fold", iters=iters)
     energy2 = estimate_energy_j(ttfb_ms2, exec_ms2, iters, power_compile_w, power_exec_w)
     out["shapes"][pretty_shape(shape_nchw)]["fused_fold_inductor"] = {
         "ttfb_ms": float(ttfb_ms2),

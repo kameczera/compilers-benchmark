@@ -66,12 +66,16 @@ class TVMKernelCounter(ast.NodeVisitor):
         self.generic_visit(node)
 
 def _dump_tvm_ir(mod: tvm.ir.IRModule, out_path: Path) -> Dict[str, Any]:
-    txt = mod.script()
+    txt = str(mod.script())
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(str(txt), encoding="utf-8")
+    out_path.write_text(txt, encoding="utf-8")
+    size_info = {
+        "code_size_bytes": len(txt.encode("utf-8")),
+        "code_lines": txt.count("\n") + (1 if txt else 0),
+    }
     # contar kernels
     try:
-        tree = ast.parse(str(txt))
+        tree = ast.parse(txt)
         c = TVMKernelCounter()
         c.visit(tree)
         return {
@@ -82,6 +86,7 @@ def _dump_tvm_ir(mod: tvm.ir.IRModule, out_path: Path) -> Dict[str, Any]:
                     "tvm_call_tir_kernels_unicos": len(c.call_tir_funcs),
                     "tvm_cls_total": c.cls_total,
                     "tvm_cls_kernels_unicos": len(c.cls_funcs),
+                    **size_info,
                 },
                 "details": {
                     "tvm_call_tir_functions": c.call_tir_funcs,
@@ -90,26 +95,33 @@ def _dump_tvm_ir(mod: tvm.ir.IRModule, out_path: Path) -> Dict[str, Any]:
             }
         }
     except Exception:
-        return {"path": str(out_path), "kernel_count": {"summary": {}, "details": {}}}
+        return {"path": str(out_path), "kernel_count": {"summary": size_info, "details": {}}}
 
 def _target_and_dev(device: str):
     if device == "cuda":
-        return tvm.target.Target("cuda"), tvm.cuda(0)
+        # Target.from_device preenche os atributos da GPU (max_shared_memory_per_block,
+        # max_threads_per_block etc.), exigidos pelas regras do dlight (ex.: GEMV).
+        # O Target("cuda") genérico não os tem e quebra com KeyError('key is not in Map').
+        try:
+            return tvm.target.Target.from_device("cuda"), tvm.cuda(0)
+        except Exception:
+            return tvm.target.Target("cuda"), tvm.cuda(0)
     return tvm.target.Target("llvm"), tvm.cpu(0)
+
+def _sync(dev, device: str):
+    if device == "cuda":
+        try: dev.sync()
+        except Exception: pass
 
 class _CudaSync:
     def __init__(self, dev, device: str):
         self.dev = dev
         self.device = device
     def __enter__(self):
-        if self.device == "cuda":
-            try: self.dev.sync()
-            except Exception: pass
+        _sync(self.dev, self.device)
         return self
     def __exit__(self, exc_type, exc, tb):
-        if self.device == "cuda":
-            try: self.dev.sync()
-            except Exception: pass
+        _sync(self.dev, self.device)
 
 def schedule_tir_default_gpu(mod: tvm.ir.IRModule, target: tvm.target.Target) -> tvm.ir.IRModule:
     new_funcs = {}
@@ -143,11 +155,14 @@ def _bench_vm(vm, inp_nd, dev, device: str, warmup: int, iters: int):
     with _CudaSync(dev, device):
         for _ in range(max(1, warmup)):
             _ = vm["main"](inp_nd)
-    with _CudaSync(dev, device):
-        t0 = time.perf_counter() * 1000.0
-        for _ in range(max(1, iters)):
-            _ = vm["main"](inp_nd)
-        t1 = time.perf_counter() * 1000.0
+    # sincroniza ANTES de ler t1: a VM lança kernels de forma assíncrona e,
+    # sem o sync, o cronômetro fecha antes de a GPU terminar (exec_ms irreal).
+    _sync(dev, device)
+    t0 = time.perf_counter() * 1000.0
+    for _ in range(max(1, iters)):
+        _ = vm["main"](inp_nd)
+    _sync(dev, device)
+    t1 = time.perf_counter() * 1000.0
     total_ms = t1 - t0
     return total_ms / max(1, iters), total_ms
 
@@ -176,6 +191,10 @@ def run_tvm(model_name: str = "resnet18",
     base_dir = Path("ir_dumps") / "tvm" / f"{stamp}_{model_name}_{pretty_shape(shape_nchw)}"
 
     # ---- UNFUSED ----
+    # A janela de compilação inclui os passes de grafo (Legalize/Fuse*/schedule)
+    # e o relax.build, para ser isonômica com o compile_ms do Inductor/XLA,
+    # cujo proxy engloba captura + fusão + codegen na primeira chamada.
+    tb0 = time.perf_counter() * 1000.0
     with target:
         mod_unfused = tvm.transform.Sequential([
             relax.transform.LegalizeOps(),
@@ -184,23 +203,23 @@ def run_tvm(model_name: str = "resnet18",
             relax.transform.FuseTIR(),
         ])(mod)
     mod_unfused = schedule_tir_default_gpu(mod_unfused, target)
-
-    # dump IR
-    dump_unfused = _dump_tvm_ir(mod_unfused, base_dir / "unfused_tvmscript.py")
-
-    tb0 = time.perf_counter() * 1000.0
     vm_u = _build_vm(mod_unfused, target, dev, params)
     tb1 = time.perf_counter() * 1000.0
     compile_u_ms = tb1 - tb0
 
-    with _CudaSync(dev, device):
-        tf0 = time.perf_counter() * 1000.0
-        _ = vm_u["main"](inp_nd)
-        tf1 = time.perf_counter() * 1000.0
+    # dump IR (fora da janela de tempo)
+    dump_unfused = _dump_tvm_ir(mod_unfused, base_dir / "unfused_tvmscript.py")
+
+    _sync(dev, device)
+    tf0 = time.perf_counter() * 1000.0
+    _ = vm_u["main"](inp_nd)
+    _sync(dev, device)
+    tf1 = time.perf_counter() * 1000.0
     first_runtime_u_ms = tf1 - tf0
     tpr_u, _ = _bench_vm(vm_u, inp_nd, dev, device, warmup, iters)
 
     # ---- FUSED ----
+    tb0 = time.perf_counter() * 1000.0
     with target:
         mod_fused = tvm.transform.Sequential([
             relax.transform.FuseTransposeMatmul(),
@@ -228,18 +247,18 @@ def run_tvm(model_name: str = "resnet18",
             relax.transform.LowerRuntimeBuiltin(),
             relax.transform.AttachGlobalSymbol(),
         ])(mod)
-
-    dump_fused = _dump_tvm_ir(mod_fused, base_dir / "fused_tvmscript.py")
-
-    tb0 = time.perf_counter() * 1000.0
     vm_f = _build_vm(mod_fused, target, dev, params)
     tb1 = time.perf_counter() * 1000.0
     compile_f_ms = tb1 - tb0
 
-    with _CudaSync(dev, device):
-        tf0 = time.perf_counter() * 1000.0
-        _ = vm_f["main"](inp_nd)
-        tf1 = time.perf_counter() * 1000.0
+    # dump IR (fora da janela de tempo)
+    dump_fused = _dump_tvm_ir(mod_fused, base_dir / "fused_tvmscript.py")
+
+    _sync(dev, device)
+    tf0 = time.perf_counter() * 1000.0
+    _ = vm_f["main"](inp_nd)
+    _sync(dev, device)
+    tf1 = time.perf_counter() * 1000.0
     first_runtime_f_ms = tf1 - tf0
     tpr_f, _ = _bench_vm(vm_f, inp_nd, dev, device, warmup, iters)
 

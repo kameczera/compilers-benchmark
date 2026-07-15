@@ -1,0 +1,18 @@
+# ambientes virtuais
+.venv_xla/
+.venv_tvm/
+
+# notas internas de desenvolvimento — não publicar no GitHub
+docs/dev-notes/
+
+# saídas do benchmark
+out_*.json
+results/
+
+# python
+__pycache__/
+*.pyc
+
+# HLO não-otimizado é gigante (~93 MB, pesos embutidos como literais);
+# mantenha no repositório apenas os artefatos que forem citados no artigo.
+ir_dumps/xla/*/fused_jit_unoptimized.hlo

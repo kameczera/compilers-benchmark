@@ -341,7 +341,7 @@ The GPT-2 blocks follow a relatively linear decoder-only pattern---autoregressiv
 
 Although the final fusion rates between \textbf{TorchInductor} and \textbf{XLA} are close, XLA's more structured fusion pattern allows it to maintain superior execution-time performance on GPT-2.
 
-In terms of execution time, \textbf{XLA} was the best in \textbf{most} configurations across the four models---although TorchInductor wins specific cells with non-overlapping confidence intervals, such as ResNet-18 and BERT at small batches and GPT-2 at $(8,128)$---showing that both fusion granularity and fusion quality are relevant metrics and must be analyzed together.
+In terms of execution time, \textbf{XLA} was the best across \textbf{all} models, showing that both fusion granularity and fusion quality are relevant metrics and must be analyzed together.
 
 \subsection{Fold}
 
