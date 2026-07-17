@@ -20,6 +20,28 @@ def sync_cuda():
 def estimate_energy_j(ttfb_ms: float, exec_ms: float, runs: int, p_compile_w: float, p_exec_w: float) -> float:
     return (ttfb_ms/1000.0)*p_compile_w + (exec_ms/1000.0)*p_exec_w*runs
 
+def stats_ms(samples: List[float]) -> Dict[str, Any]:
+    """Estatísticas das amostras por iteração (ms): média, desvio-padrão
+    amostral (n-1) e meia-largura do IC 95% — os valores "média ± sd" das
+    tabelas do artigo saem daqui. As amostras brutas ficam no JSON para
+    permitir reanálise sem re-medição."""
+    n = len(samples)
+    mean = sum(samples) / n if n else 0.0
+    if n > 1:
+        var = sum((s - mean) ** 2 for s in samples) / (n - 1)
+        std = math.sqrt(var)
+        ci95 = 1.96 * std / math.sqrt(n)
+    else:
+        std = 0.0
+        ci95 = 0.0
+    return {
+        "mean": float(mean),
+        "std": float(std),
+        "ci95_halfwidth": float(ci95),
+        "n": n,
+        "samples": [round(float(s), 4) for s in samples],
+    }
+
 def pretty_shape(nchw: Tuple[int,int,int,int]) -> str:
     n,c,h,w = nchw
     return f"{n}x{c}x{h}x{w}"

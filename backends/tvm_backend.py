@@ -13,12 +13,12 @@ from tvm.tir import transform as tir_transform
 
 # --- imports robustos ---
 try:
-    from .common import now_ms, pretty_shape, estimate_energy_j
+    from .common import now_ms, pretty_shape, estimate_energy_j, stats_ms
 except Exception:
     try:
-        from backends.common import now_ms, pretty_shape, estimate_energy_j
+        from backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
     except Exception:
-        from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j
+        from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
 
 try:
     from ..models.resnet_torch import get_resnet
@@ -155,16 +155,18 @@ def _bench_vm(vm, inp_nd, dev, device: str, warmup: int, iters: int):
     with _CudaSync(dev, device):
         for _ in range(max(1, warmup)):
             _ = vm["main"](inp_nd)
-    # sincroniza ANTES de ler t1: a VM lança kernels de forma assíncrona e,
-    # sem o sync, o cronômetro fecha antes de a GPU terminar (exec_ms irreal).
+    # A VM lança kernels de forma assíncrona: o sync por iteração garante que
+    # cada amostra cubra a execução inteira na GPU (sem ele o cronômetro fecha
+    # antes de a GPU terminar) e dá a mesma semântica de medição dos caminhos
+    # Inductor (torch.cuda.synchronize) e XLA (block_until_ready).
     _sync(dev, device)
-    t0 = time.perf_counter() * 1000.0
+    samples = []
     for _ in range(max(1, iters)):
+        t0 = time.perf_counter() * 1000.0
         _ = vm["main"](inp_nd)
-    _sync(dev, device)
-    t1 = time.perf_counter() * 1000.0
-    total_ms = t1 - t0
-    return total_ms / max(1, iters), total_ms
+        _sync(dev, device)
+        samples.append(time.perf_counter() * 1000.0 - t0)
+    return stats_ms(samples)
 
 def run_tvm(model_name: str = "resnet18",
             device: str = "cuda",
@@ -216,7 +218,8 @@ def run_tvm(model_name: str = "resnet18",
     _sync(dev, device)
     tf1 = time.perf_counter() * 1000.0
     first_runtime_u_ms = tf1 - tf0
-    tpr_u, _ = _bench_vm(vm_u, inp_nd, dev, device, warmup, iters)
+    stats_u = _bench_vm(vm_u, inp_nd, dev, device, warmup, iters)
+    tpr_u = stats_u["mean"]
 
     # ---- FUSED ----
     tb0 = time.perf_counter() * 1000.0
@@ -260,7 +263,8 @@ def run_tvm(model_name: str = "resnet18",
     _sync(dev, device)
     tf1 = time.perf_counter() * 1000.0
     first_runtime_f_ms = tf1 - tf0
-    tpr_f, _ = _bench_vm(vm_f, inp_nd, dev, device, warmup, iters)
+    stats_f = _bench_vm(vm_f, inp_nd, dev, device, warmup, iters)
+    tpr_f = stats_f["mean"]
 
     speedup = (tpr_u / tpr_f) if tpr_f > 0 else None
     energy_fused = estimate_energy_j(first_runtime_f_ms, tpr_f, iters, power_compile_w, power_exec_w)
@@ -274,12 +278,18 @@ def run_tvm(model_name: str = "resnet18",
                     "ttfb_ms": float(first_runtime_u_ms),
                     "compile_ms": float(compile_u_ms),
                     "exec_ms": float(tpr_u),
+                    "exec_ms_std": float(stats_u["std"]),
+                    "exec_ms_ci95": float(stats_u["ci95_halfwidth"]),
+                    "exec_samples_ms": stats_u["samples"],
                     "energy_j": float(energy_unfused),
                 },
                 "fused": {
                     "ttfb_ms": float(first_runtime_f_ms),
                     "compile_ms": float(compile_f_ms),
                     "exec_ms": float(tpr_f),
+                    "exec_ms_std": float(stats_f["std"]),
+                    "exec_ms_ci95": float(stats_f["ci95_halfwidth"]),
+                    "exec_samples_ms": stats_f["samples"],
                     "energy_j": float(energy_fused),
                 },
                 "speedup_exec_x": float(speedup) if speedup is not None else None,

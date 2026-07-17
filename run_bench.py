@@ -82,9 +82,12 @@ def main():
     if not args.no_xla:
         try:
             from backends.xla_backend import run_xla
+            # Mesmo warmup/iters dos demais backends — o protocolo do artigo
+            # (10 warmups, n=50) vale para os três; o corte pela metade que
+            # existia aqui fazia o XLA rodar com 5/25 sem registrar isso no texto.
             results["raw"]["xla"] = run_xla(
                 model_name=args.model, device=args.device, dtype=args.dtype,
-                shape_nchw=shape, warmup=max(5, args.warmup//2), iters=max(10, args.iters//2),
+                shape_nchw=shape, warmup=args.warmup, iters=args.iters,
                 power_compile_w=args.power_compile, power_exec_w=args.power_exec
             )
         except Exception as e:

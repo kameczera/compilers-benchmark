@@ -10,12 +10,12 @@ import torch.nn.functional as F
 
 # --- imports robustos ---
 try:
-    from .common import now_ms, sync_cuda, pretty_shape, estimate_energy_j
+    from .common import now_ms, sync_cuda, pretty_shape, estimate_energy_j, stats_ms
 except Exception:
     try:
-        from backends.common import now_ms, sync_cuda, pretty_shape, estimate_energy_j
+        from backends.common import now_ms, sync_cuda, pretty_shape, estimate_energy_j, stats_ms
     except Exception:
-        from cnnbench.backends.common import now_ms, sync_cuda, pretty_shape, estimate_energy_j
+        from cnnbench.backends.common import now_ms, sync_cuda, pretty_shape, estimate_energy_j, stats_ms
 
 try:
     from ..models.resnet_torch import get_resnet, to_dtype
@@ -176,13 +176,15 @@ def fold_bn_inplace(model: nn.Module) -> nn.Module:
                     _fuse_conv_bn(m[i], m[i+1])
                     # remove BN substituindo por Identity
                     m[i+1] = nn.Identity()
-        # padrões da ResNet básica
-        if hasattr(m, "conv1") and hasattr(m, "bn1") and isinstance(m.conv1, nn.Conv2d) and isinstance(m.bn1, nn.BatchNorm2d):
-            _fuse_conv_bn(m.conv1, m.bn1)
-            m.bn1 = nn.Identity()
-        if hasattr(m, "conv2") and hasattr(m, "bn2") and isinstance(m.conv2, nn.Conv2d) and isinstance(m.bn2, nn.BatchNorm2d):
-            _fuse_conv_bn(m.conv2, m.bn2)
-            m.bn2 = nn.Identity()
+        # padrões da ResNet: BasicBlock (conv1/bn1, conv2/bn2) e Bottleneck
+        # (conv1..conv3/bn1..bn3 — sem o par 3, o ResNet-50 ficava com os 16
+        # bn3 por dobrar e o "fold" media um fold incompleto)
+        for idx in (1, 2, 3):
+            conv = getattr(m, f"conv{idx}", None)
+            bn = getattr(m, f"bn{idx}", None)
+            if isinstance(conv, nn.Conv2d) and isinstance(bn, nn.BatchNorm2d):
+                _fuse_conv_bn(conv, bn)
+                setattr(m, f"bn{idx}", nn.Identity())
         if hasattr(m, "downsample") and isinstance(m.downsample, nn.Sequential):
             ds = m.downsample
             for i in range(len(ds) - 1):
@@ -193,10 +195,10 @@ def fold_bn_inplace(model: nn.Module) -> nn.Module:
 
 
 def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag: str,
-                           iters: int = 50) -> Tuple[float, float, float, str, Dict[str, Any]]:
+                           warmup: int = 10, iters: int = 50) -> Tuple[float, float, Dict[str, Any], str, Dict[str, Any]]:
     """
     Compila com Inductor, captura 'output_code' (Triton + extern) e mede tempos.
-    Retorna: (compile_ms_proxy, ttfb_ms, exec_ms_avg, code_path, kernel_counts)
+    Retorna: (compile_ms_proxy, ttfb_ms, exec_stats, code_path, kernel_counts)
     """
     # Caches persistentes (FXGraphCache em /tmp/torchinductor_$USER) pulam o
     # codegen: compile_ms sai subestimado e nenhum output_code é gerado.
@@ -282,18 +284,28 @@ def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag
             "e repita com TORCHINDUCTOR_FORCE_DISABLE_CACHES=1 (ver README)."
         )
 
-    # execuções subsequentes
+    # warmup pós-compilação (protocolo do artigo: 'warmup' iterações compiladas
+    # antes da janela medida — a 1ª chamada acima não conta como warmup)
     with torch.inference_mode():
-        t0 = now_ms()
-        for _ in range(iters):
-            y = compiled(x)
+        for _ in range(max(1, warmup)):
+            _ = compiled(x)
         sync_cuda()
-        t1 = now_ms()
-    exec_ms = (t1 - t0) / iters
+
+    # janela medida: uma amostra por iteração, com sync por iteração — mesma
+    # semântica do block_until_ready do caminho XLA e do dev.sync() do TVM,
+    # e é o que permite reportar média ± desvio-padrão
+    samples = []
+    with torch.inference_mode():
+        for _ in range(iters):
+            t0 = now_ms()
+            _ = compiled(x)
+            sync_cuda()
+            samples.append(now_ms() - t0)
+    exec_stats = stats_ms(samples)
 
     # proxy de compile_ms: usamos o ttfb_ms (compilação + 1st run) e subtraímos exec médio
-    compile_ms = max(0.0, ttfb_ms - exec_ms)
-    return compile_ms, ttfb_ms, exec_ms, str(code_path), kc
+    compile_ms = max(0.0, ttfb_ms - exec_stats["mean"])
+    return compile_ms, ttfb_ms, exec_stats, str(code_path), kc
 
 
 def run_pytorch(model_name: str = "resnet18",
@@ -324,19 +336,21 @@ def run_pytorch(model_name: str = "resnet18",
     x = torch.randn(N, C, H, W, device=dev, dtype=getattr(torch, dtype.replace("fp", "float")))
     if dev.type == "cuda":
         x = x.to(memory_format=torch.channels_last)
-    for _ in range(max(1, warmup // 2)):
+    for _ in range(max(1, warmup)):
         with torch.inference_mode():
             _ = base(x)
     sync_cuda()
 
-    # ----- Eager baseline -----
+    # ----- Eager baseline (uma amostra por iteração, sync por iteração) -----
+    eager_samples = []
     with torch.inference_mode():
-        t0 = now_ms()
         for _ in range(iters):
+            t0 = now_ms()
             _ = base(x)
-        sync_cuda()
-        t1 = now_ms()
-    eager_exec_ms = (t1 - t0) / iters
+            sync_cuda()
+            eager_samples.append(now_ms() - t0)
+    eager_stats = stats_ms(eager_samples)
+    eager_exec_ms = eager_stats["mean"]
     eager_ttfb_ms = eager_exec_ms
 
     out = {
@@ -350,12 +364,16 @@ def run_pytorch(model_name: str = "resnet18",
     out_dir = Path("ir_dumps") / "inductor" / f"{stamp}_{model_name}_{pretty_shape(shape_nchw)}"
 
     # ----- Inductor padrão -----
-    compile_ms, ttfb_ms, exec_ms, code_path, kcount = _compile_and_dump_code(base, x, out_dir, "fused", iters=iters)
+    compile_ms, ttfb_ms, exec_stats, code_path, kcount = _compile_and_dump_code(base, x, out_dir, "fused", warmup=warmup, iters=iters)
+    exec_ms = exec_stats["mean"]
     energy = estimate_energy_j(ttfb_ms, exec_ms, iters, power_compile_w, power_exec_w)
     out["shapes"][pretty_shape(shape_nchw)]["fused_inductor"] = {
         "ttfb_ms": float(ttfb_ms),
         "compile_ms": float(compile_ms),
         "exec_ms": float(exec_ms),
+        "exec_ms_std": float(exec_stats["std"]),
+        "exec_ms_ci95": float(exec_stats["ci95_halfwidth"]),
+        "exec_samples_ms": exec_stats["samples"],
         "energy_j": float(energy),
     }
     out["ir_dump"]["fused_inductor"] = {"path": code_path, "kernel_count": kcount}
@@ -365,12 +383,16 @@ def run_pytorch(model_name: str = "resnet18",
     folded = to_dtype(folded, dtype)
     if dev.type == "cuda":
         folded = folded.to(memory_format=torch.channels_last)
-    compile_ms2, ttfb_ms2, exec_ms2, code_path2, kcount2 = _compile_and_dump_code(folded, x, out_dir, "fused_fold", iters=iters)
+    compile_ms2, ttfb_ms2, exec_stats2, code_path2, kcount2 = _compile_and_dump_code(folded, x, out_dir, "fused_fold", warmup=warmup, iters=iters)
+    exec_ms2 = exec_stats2["mean"]
     energy2 = estimate_energy_j(ttfb_ms2, exec_ms2, iters, power_compile_w, power_exec_w)
     out["shapes"][pretty_shape(shape_nchw)]["fused_fold_inductor"] = {
         "ttfb_ms": float(ttfb_ms2),
         "compile_ms": float(compile_ms2),
         "exec_ms": float(exec_ms2),
+        "exec_ms_std": float(exec_stats2["std"]),
+        "exec_ms_ci95": float(exec_stats2["ci95_halfwidth"]),
+        "exec_samples_ms": exec_stats2["samples"],
         "energy_j": float(energy2),
     }
     out["ir_dump"]["fused_fold_inductor"] = {"path": code_path2, "kernel_count": kcount2}
@@ -379,6 +401,9 @@ def run_pytorch(model_name: str = "resnet18",
     out["shapes"][pretty_shape(shape_nchw)]["eager"] = {
         "ttfb_ms": float(eager_ttfb_ms),
         "exec_ms": float(eager_exec_ms),
+        "exec_ms_std": float(eager_stats["std"]),
+        "exec_ms_ci95": float(eager_stats["ci95_halfwidth"]),
+        "exec_samples_ms": eager_stats["samples"],
     }
 
     # speedups

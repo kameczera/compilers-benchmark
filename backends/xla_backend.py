@@ -8,12 +8,12 @@ import jax, jax.numpy as jnp
 
 # --- imports robustos ---
 try:
-    from .common import now_ms, pretty_shape, estimate_energy_j
+    from .common import now_ms, pretty_shape, estimate_energy_j, stats_ms
 except Exception:
     try:
-        from backends.common import now_ms, pretty_shape, estimate_energy_j
+        from backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
     except Exception:
-        from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j
+        from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
 
 try:
     from ..models.resnet_jax import load_resnet18_from_flaxmodels
@@ -142,8 +142,8 @@ def run_xla(model_name: str = "resnet18",
         return apply_fn(variables, inp)
 
     # ----- Baseline sem JIT (unfused) -----
-    # warmup leve
-    for _ in range(max(1, warmup // 2)):
+    # warmup completo (mesmo protocolo dos demais backends)
+    for _ in range(max(1, warmup)):
         y0 = forward(x)
         try:
             jax.block_until_ready(y0)
@@ -152,7 +152,8 @@ def run_xla(model_name: str = "resnet18",
 
     # steady-state sem JIT
     unfused_samples = _measure_per_iter_ms(lambda: forward(x), iters)
-    eager_exec_ms = _avg_ms(unfused_samples)
+    unfused_stats = stats_ms(unfused_samples)
+    eager_exec_ms = unfused_stats["mean"]
     eager_ttfb_ms = eager_exec_ms
 
     # ----- JIT -----
@@ -207,7 +208,8 @@ def run_xla(model_name: str = "resnet18",
 
     # steady-state jit por iteração
     fused_samples = _measure_per_iter_ms(lambda: jitted(x), iters)
-    avg_exec_ms = _avg_ms(fused_samples)
+    fused_stats = stats_ms(fused_samples)
+    avg_exec_ms = fused_stats["mean"]
 
     # HLO (optimized), quando possível
     hlo_opt_info = None
@@ -245,12 +247,18 @@ def run_xla(model_name: str = "resnet18",
                 "unfused": {
                     "ttfb_ms": float(eager_ttfb_ms),
                     "exec_ms": float(eager_exec_ms),
+                    "exec_ms_std": float(unfused_stats["std"]),
+                    "exec_ms_ci95": float(unfused_stats["ci95_halfwidth"]),
+                    "exec_samples_ms": unfused_stats["samples"],
                 },
                 "fused_jit": {
                     "ttfb_ms": float(ttfb_ms),
                     "compile_ms": float(compile_ms),
                     "first_exec_ms": float(first_exec_ms),
                     "exec_ms": float(exec_ms),
+                    "exec_ms_std": float(fused_stats["std"]),
+                    "exec_ms_ci95": float(fused_stats["ci95_halfwidth"]),
+                    "exec_samples_ms": fused_stats["samples"],
                     "energy_j": float(energy),
                 },
                 "speedup_exec_x": float(eager_exec_ms / exec_ms) if exec_ms > 0 else None,

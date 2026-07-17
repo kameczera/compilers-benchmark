@@ -5,9 +5,10 @@
 # notas internas de desenvolvimento — não publicar no GitHub
 docs/dev-notes/
 
-# saídas do benchmark
+# saídas do benchmark (JSONs soltos de execuções ad-hoc).
+# As campanhas de medição que sustentam o artigo ficam VERSIONADAS em
+# results/ — são os dados brutos do artefato (selo de reprodutibilidade).
 out_*.json
-results/
 
 # python
 __pycache__/

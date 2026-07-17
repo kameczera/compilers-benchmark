@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "device": "cuda",
+    "dtype": "fp32",
+    "warmup": 10,
+    "iters": 50,
+    "power_compile_W": 25.0,
+    "power_exec_W": 25.0,
+    "model": "resnet50",
+    "shape": [
+      16,
+      3,
+      224,
+      224
+    ]
+  },
+  "raw": {
+    "tvm": {
+      "meta": {
+        "device": "cuda",
+        "dtype": "fp32",
+        "warmup": 10,
+        "iters": 50
+      },
+      "shapes": {
+        "16x3x224x224": {
+          "unfused": {
+            "ttfb_ms": 581.4542580000125,
+            "compile_ms": 7113.507782000117,
+            "exec_ms": 575.6215296400804,
+            "exec_ms_std": 3.555384360351166,
+            "exec_ms_ci95": 0.9855022652441308,
+            "exec_samples_ms": [
+              577.2154,
+              574.7561,
+              576.4695,
+              575.6076,
+              580.2134,
+              576.5034,
+              578.5826,
+              575.268,
+              581.8386,
+              574.7852,
+              576.7746,
+              586.1837,
+              576.7367,
+              582.2214,
+              574.1865,
+              576.5676,
+              575.0337,
+              577.9516,
+              580.5683,
+              574.163,
+              577.1505,
+              579.7912,
+              579.1096,
+              577.5731,
+              571.7523,
+              570.6349,
+              570.5289,
+              573.7768,
+              571.6392,
+              572.5169,
+              573.5346,
+              571.6303,
+              574.6511,
+              572.989,
+              574.6274,
+              576.1855,
+              575.459,
+              569.6374,
+              574.6971,
+              575.3434,
+              573.2717,
+              574.2032,
+              577.2916,
+              570.278,
+              569.6669,
+              575.7279,
+              581.3824,
+              576.2163,
+              569.45,
+              578.7334
+            ],
+            "energy_j": 734.0632685001009
+          },
+          "fused": {
+            "ttfb_ms": 276.906665999908,
+            "compile_ms": 13361.679660999682,
+            "exec_ms": 261.87288333994337,
+            "exec_ms_std": 0.1022379833743196,
+            "exec_ms_ci95": 0.028338923164817002,
+            "exec_samples_ms": [
+              261.8598,
+              261.6219,
+              261.835,
+              261.8246,
+              261.8159,
+              261.9234,
+              261.8736,
+              261.7285,
+              261.7347,
+              261.7954,
+              261.8875,
+              261.8452,
+              261.8405,
+              262.0411,
+              261.8818,
+              261.9669,
+              261.9092,
+              261.9802,
+              261.8599,
+              261.681,
+              261.9512,
+              261.838,
+              261.8686,
+              261.9162,
+              261.814,
+              261.8958,
+              261.749,
+              262.0738,
+              261.8209,
+              261.9058,
+              261.9126,
+              261.8408,
+              261.869,
+              261.7558,
+              262.0041,
+              261.9328,
+              261.6648,
+              262.1412,
+              261.872,
+              261.857,
+              261.8485,
+              262.0458,
+              261.8409,
+              261.831,
+              261.9356,
+              261.8703,
+              261.9011,
+              261.7996,
+              262.0533,
+              261.9286
+            ],
+            "energy_j": 334.2637708249269
+          },
+          "speedup_exec_x": 2.1980952067223107
+        }
+      },
+      "ir_dump": {
+        "unfused": {
+          "path": "ir_dumps/tvm/1784292350907_resnet50_16x3x224x224/unfused_tvmscript.py",
+          "kernel_count": {
+            "summary": {
+              "tvm_call_tir_total": 160,
+              "tvm_call_tir_kernels_unicos": 52,
+              "tvm_cls_total": 0,
+              "tvm_cls_kernels_unicos": 0,
+              "code_size_bytes": 466374,
+              "code_lines": 4465
+            },
+            "details": {
+              "tvm_call_tir_functions": {
+                "conv2d": 1,
+                "batch_norm": 1,
+                "fused_relu": 1,
+                "max_pool2d": 1,
+                "conv2d1": 1,
+                "batch_norm1": 6,
+                "fused_relu1": 6,
+                "conv2d2": 3,
+                "conv2d3": 4,
+                "batch_norm2": 4,
+                "fused_add_relu2": 3,
+                "conv2d4": 2,
+                "conv2d5": 1,
+                "batch_norm3": 1,
+                "fused_relu3": 1,
+                "conv2d6": 1,
+                "batch_norm4": 7,
+                "fused_relu4": 7,
+                "conv2d7": 4,
+                "batch_norm5": 5,
+                "conv2d8": 1,
+                "fused_add1_relu5": 4,
+                "conv2d9": 3,
+                "conv2d10": 3,
+                "conv2d11": 1,
+                "batch_norm6": 1,
+                "fused_relu6": 1,
+                "conv2d12": 1,
+                "batch_norm7": 11,
+                "fused_relu7": 11,
+                "conv2d13": 6,
+                "batch_norm8": 7,
+                "conv2d14": 1,
+                "fused_add2_relu8": 6,
+                "conv2d15": 5,
+                "conv2d16": 5,
+                "conv2d17": 1,
+                "batch_norm9": 1,
+                "fused_relu9": 1,
+                "conv2d18": 1,
+                "batch_norm10": 5,
+                "fused_relu10": 5,
+                "conv2d19": 3,
+                "batch_norm11": 4,
+                "conv2d20": 1,
+                "fused_add3_relu11": 3,
+                "conv2d21": 2,
+                "conv2d22": 2,
+                "adaptive_avg_pool2d": 1,
+                "reshape": 1,
+                "transpose": 1,
+                "fused_matmul_add4": 1
+              },
+              "tvm_cls_functions": {}
+            }
+          }
+        },
+        "fused": {
+          "path": "ir_dumps/tvm/1784292350907_resnet50_16x3x224x224/fused_tvmscript.py",
+          "kernel_count": {
+            "summary": {
+              "tvm_call_tir_total": 0,
+              "tvm_call_tir_kernels_unicos": 0,
+              "tvm_cls_total": 158,
+              "tvm_cls_kernels_unicos": 50,
+              "code_size_bytes": 362341,
+              "code_lines": 3416
+            },
+            "details": {
+              "tvm_call_tir_functions": {},
+              "tvm_cls_functions": {
+                "conv2d": 1,
+                "batch_norm": 1,
+                "fused_relu": 1,
+                "max_pool2d": 1,
+                "conv2d1": 1,
+                "batch_norm1": 6,
+                "fused_relu1": 6,
+                "conv2d2": 3,
+                "conv2d3": 4,
+                "batch_norm2": 4,
+                "fused_add_relu2": 3,
+                "conv2d4": 2,
+                "conv2d5": 1,
+                "batch_norm3": 1,
+                "fused_relu3": 1,
+                "conv2d6": 1,
+                "batch_norm4": 7,
+                "fused_relu4": 7,
+                "conv2d7": 4,
+                "batch_norm5": 5,
+                "conv2d8": 1,
+                "fused_add1_relu5": 4,
+                "conv2d9": 3,
+                "conv2d10": 3,
+                "conv2d11": 1,
+                "batch_norm6": 1,
+                "fused_relu6": 1,
+                "conv2d12": 1,
+                "batch_norm7": 11,
+                "fused_relu7": 11,
+                "conv2d13": 6,
+                "batch_norm8": 7,
+                "conv2d14": 1,
+                "fused_add2_relu8": 6,
+                "conv2d15": 5,
+                "conv2d16": 5,
+                "conv2d17": 1,
+                "batch_norm9": 1,
+                "fused_relu9": 1,
+                "conv2d18": 1,
+                "batch_norm10": 5,
+                "fused_relu10": 5,
+                "conv2d19": 3,
+                "batch_norm11": 4,
+                "conv2d20": 1,
+                "fused_add3_relu11": 3,
+                "conv2d21": 2,
+                "conv2d22": 2,
+                "adaptive_avg_pool2d": 1,
+                "fused_NT_matmul_add4": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "recommendation": {
+    "target_shape": [
+      16,
+      3,
+      224,
+      224
+    ],
+    "per_backend": {
+      "tvm": {
+        "ttfb_ms": 276.906665999908,
+        "exec_ms": 261.87288333994337,
+        "compile_ms": 13361.679660999682
+      }
+    },
+    "model_linear": {
+      "tvm": {
+        "a_exec_ms": 261.87288333994337,
+        "b_compile_ms": 13361.679660999682
+      }
+    },
+    "breakpoints": [],
+    "segments": [
+      {
+        "n_start_real": 0.0,
+        "n_start_int": 0,
+        "backend": "tvm"
+      }
+    ],
+    "best_at_runs_exec": "tvm",
+    "plot": {
+      "path": "plots/envelope_1784292423679_16x3x224x224.png",
+      "x_max": 128.0
+    }
+  }
+}

@@ -52,7 +52,11 @@ BENCH_QUICK_ARGS ?= --device cuda --model resnet18 --dtype fp32 --batch 1 --heig
         conda_xla_env conda_check_xla conda_smoke_xla conda_smoke_torch conda_smoke_xla_torch conda_clean_xla \
         xla_env check_xla smoke_xla smoke_torch smoke_xla_torch \
         tvm_env smoke_tvm show_versions_xla show_versions_conda_xla lock_xla \
+        check_fold grid tables \
         clean_inductor_cache clean
+
+# Diretório dos JSONs medidos (entrada do make tables / saída do make grid)
+RESULTS_DIR ?= results/v2
 
 help:
 	@echo "CNN Compilers Benchmark"
@@ -63,6 +67,11 @@ help:
 	@echo "  make smoke_torch / smoke_xla / smoke_xla_torch"
 	@echo "  make tvm_env && make smoke_tvm TVM_HOME=/caminho/para/tvm"
 	@echo "  make clean_inductor_cache   # antes de cada medicao do PyTorch!"
+	@echo ""
+	@echo "Reproducao do artigo (dado -> tabela, sem transcricao manual):"
+	@echo "  make check_fold                              # valida o fold BN->Conv (CPU)"
+	@echo "  make grid TVM_HOME=/caminho/para/tvm         # re-mede a grade completa -> $(RESULTS_DIR)"
+	@echo "  make tables                                  # gera tabelas LaTeX/MD de $(RESULTS_DIR)"
 	@echo ""
 	@echo "Conda workflow alternativo:"
 	@echo "  make conda_xla_env CONDA_ENV_XLA=teste_xla"
@@ -141,6 +150,21 @@ smoke_tvm: tvm_env
 	@test -n "$(TVM_HOME)" || { echo "ERRO: defina TVM_HOME (checkout do TVM compilado do fonte), ex.: make smoke_tvm TVM_HOME=$$HOME/tvm"; exit 1; }
 	. $(VENV_TVM)/bin/activate && PYTHONPATH=$(TVM_HOME)/python:$(TVM_HOME)/build:$$PYTHONPATH python run_bench.py $(BENCH_QUICK_ARGS) --no-xla --no-inductor --output out_smoke_tvm.json
 	@echo "[OK] Gerado: out_smoke_tvm.json"
+
+# -------------------- Reproducao do artigo --------------------
+# Valida o fold BN->Conv (sem BN residual + equivalencia numerica). Roda em CPU.
+check_fold: xla_env
+	. $(VENV_XLA)/bin/activate && python scripts/check_fold.py
+
+# Grade completa do artigo (warmup 10, iters 50): Inductor/TVM r18+r50 x 5 shapes,
+# XLA r18 x 5 shapes. Grava <backend>_<modelo>_<shape>.json em RESULTS_DIR.
+grid: xla_env tvm_env
+	@test -n "$(TVM_HOME)" || { echo "ERRO: defina TVM_HOME, ex.: make grid TVM_HOME=$$HOME/tvm"; exit 1; }
+	VENV_XLA=$(VENV_XLA) VENV_TVM=$(VENV_TVM) TVM_HOME=$(TVM_HOME) scripts/run_full_grid.sh $(RESULTS_DIR)
+
+# Tabelas do artigo geradas dos JSONs (LaTeX + summary.md com n_eq e kernels)
+tables:
+	python3 scripts/make_tables.py --results-dir $(RESULTS_DIR) --out-dir $(RESULTS_DIR)/tables
 
 # -------------------- Diagnostics/locks --------------------
 show_versions_xla: xla_env
