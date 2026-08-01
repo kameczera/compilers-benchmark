@@ -17,22 +17,28 @@
 # benchmark (torch/torchvision para o trace FX do modelo, matplotlib para os
 # gráficos do modelo de custo).
 #
-# O snapshot completo do ambiente original (pip freeze) está preservado em
-# env_reports/requirements_tvm_snapshot_original.txt.
+# As dependências usadas pelo artefato estão fixadas abaixo. `collect.py`
+# registra as versões efetivamente carregadas em cada reprodução.
 #
 # Ambiente de referência do artigo: Python 3.11.13, LLVM 20.1.8, CUDA 12.6.
 
 # --- dependências core do TVM (python/gen_requirements.py) ---
-cloudpickle
-ml_dtypes
+cloudpickle==3.1.1
+ml_dtypes==0.5.3
 numpy==2.1.3
-packaging
-psutil
-scipy
-tornado
-typing_extensions
+packaging==25.0
+psutil==7.0.0
+scipy==1.16.1
+tornado==6.5.1
+typing_extensions==4.14.1
 
 # --- benchmark (trace FX do ResNet + plots) ---
 torch==2.5.1
 torchvision==0.20.1
-matplotlib
+matplotlib==3.10.7
+
+# --- comparacao Transformer (importa BERT/GPT-2 no Relax) ---
+# Mesma versao do ambiente XLA/Inductor, para que os tres backends partam do
+# mesmo grafo de origem. Nao altera torch/TVM, entao a campanha ResNet K=5
+# arquivada continua valida.
+transformers==4.56.2

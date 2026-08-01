@@ -1,0 +1,247 @@
+{
+  "meta": {
+    "model": "bert",
+    "input": {
+      "batch": 8,
+      "seq_len": 128
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "execution_samples_per_variant": 250,
+    "base_fold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "persistent_compiler_cache_disabled": true,
+    "seed": 0,
+    "failed_attempts": []
+  },
+  "variants": {
+    "base": {
+      "fold": {
+        "transformation": "none",
+        "folded_pairs": 0,
+        "semantics_preserved": true
+      },
+      "software": {
+        "python": "3.12.3",
+        "torch": "2.9.0+cu128",
+        "transformers": "4.56.2"
+      },
+      "compile_ms": 10310.620875263356,
+      "compile_ms_std": 518.0791170289513,
+      "compile_ms_ci95": 643.1770605115711,
+      "compile_samples_ms": [
+        9543.419,
+        10339.8167,
+        10983.9998,
+        10462.6117,
+        10223.2572
+      ],
+      "ttfb_ms": 10340.014251400135,
+      "ttfb_ms_std": 518.5334805095029,
+      "ttfb_ms_ci95": 643.7411368431956,
+      "exec_ms": 29.393375199999998,
+      "exec_ms_std": 0.8589211980401525,
+      "exec_ms_ci95": 1.1140718210095528,
+      "exec_ms_ci95_method": "student_t_over_process_means",
+      "exec_run_means_ms": [
+        28.3748,
+        30.347,
+        29.856,
+        28.4942,
+        29.8949
+      ],
+      "exec_samples_n": 250,
+      "artifacts": [
+        {
+          "path": "ir_dumps/transformers/inductor/1785553400905_bert_8x128_base/base_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553437093_bert_8x128_base/base_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553476477_bert_8x128_base/base_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553516502_bert_8x128_base/base_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553555703_bert_8x128_base/base_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        }
+      ]
+    },
+    "fold_control": {
+      "fold": {
+        "transformation": "identity_control",
+        "folded_pairs": 0,
+        "historical_heuristic_candidates": [],
+        "historical_script": "testes/pytorch/bert2.py",
+        "semantics_preserved": true,
+        "reason": "The historical sibling-based heuristic finds no LayerNorm followed by a Linear in the same parent. Hugging Face BertModel is also post-LayerNorm, so projection-only folding would leave an uncompensated residual consumer."
+      },
+      "software": {
+        "python": "3.12.3",
+        "torch": "2.9.0+cu128",
+        "transformers": "4.56.2"
+      },
+      "compile_ms": 10395.907554684949,
+      "compile_ms_std": 589.8061187427712,
+      "compile_ms_ci95": 732.2236184700636,
+      "compile_samples_ms": [
+        9594.0586,
+        10635.6584,
+        10788.728,
+        10991.6274,
+        9969.4655
+      ],
+      "ttfb_ms": 10425.681072400403,
+      "ttfb_ms_std": 589.954587394209,
+      "ttfb_ms_ci95": 732.4079370956772,
+      "exec_ms": 29.7735192,
+      "exec_ms_std": 0.5314305476912651,
+      "exec_ms_ci95": 0.2532530114689602,
+      "exec_ms_ci95_method": "student_t_over_process_means",
+      "exec_run_means_ms": [
+        29.4169,
+        29.9163,
+        29.8869,
+        29.8013,
+        29.8462
+      ],
+      "exec_samples_n": 250,
+      "artifacts": [
+        {
+          "path": "ir_dumps/transformers/inductor/1785553418788_bert_8x128_fold/fold_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553456662_bert_8x128_fold/fold_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553496638_bert_8x128_fold/fold_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553535681_bert_8x128_fold/fold_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        },
+        {
+          "path": "ir_dumps/transformers/inductor/1785553574807_bert_8x128_fold/fold_inductor_output_code.py",
+          "kernel_count": {
+            "summary": {
+              "triton_launches_total": 80,
+              "triton_kernels_unicos": 5,
+              "extern_kernels_total": 144,
+              "extern_funcs_unicas": 2,
+              "direct_aten_calls_total": 2106,
+              "code_size_bytes": 665242,
+              "code_lines": 7320
+            }
+          }
+        }
+      ]
+    }
+  },
+  "delta": {
+    "compile_percent": 0.8271730718584447,
+    "exec_percent": 1.2932982259213244,
+    "compile_ci95_overlap": true,
+    "exec_ci95_overlap": true
+  }
+}

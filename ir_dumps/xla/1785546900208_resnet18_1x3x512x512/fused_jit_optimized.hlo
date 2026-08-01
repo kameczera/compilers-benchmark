@@ -1,0 +1,159 @@
+HloModule jit_forward, is_scheduled=true, entry_computation_layout={(f32[1,512,512,3]{3,2,1,0})->f32[1,1000]{1,0}}, allow_spmd_sharding_propagation_to_parameters={true}, allow_spmd_sharding_propagation_to_output={true}, frontend_attributes={fingerprint_before_lhs="2ceef950033562731a9de453ff3bc0a0"}
+
+%region_1.165 (Arg_0.162: f32[], Arg_1.163: f32[]) -> f32[] {
+  %Arg_1.163 = f32[] parameter(1), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum"}
+  %Arg_0.162 = f32[] parameter(0), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum"}
+  ROOT %add.164.0 = f32[] add(%Arg_0.162, %Arg_1.163), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+
+%fused_reduce (param_0.16: f32[1,512,16,16]) -> f32[512] {
+  %param_0.16 = f32[1,512,16,16]{3,2,1,0} parameter(0)
+  %bitcast.328.1 = f32[512,256]{1,0} bitcast(%param_0.16)
+  %constant_24_1 = f32[] constant(0)
+  ROOT %reduce.1.1 = f32[512]{0} reduce(%bitcast.328.1, %constant_24_1), dimensions={1}, to_apply=%region_1.165, metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+
+%region_1.165.clone (Arg_0.13: f32[], Arg_1.0: f32[]) -> f32[] {
+  %Arg_1.0 = f32[] parameter(1), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum"}
+  %Arg_0.13 = f32[] parameter(0), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum"}
+  ROOT %add.1.0 = f32[] add(%Arg_0.13, %Arg_1.0), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+
+%fused_reduce.1 (param_0.17: f32[1000,512], param_1.15: f32[512]) -> f32[1000] {
+  %param_1.15 = f32[512]{0} parameter(1)
+  %bitcast.324.3 = f32[1,512]{1,0} bitcast(%param_1.15), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  %constant_64_1 = f32[] constant(0.00390625)
+  %broadcast.40.3 = f32[1,512]{1,0} broadcast(%constant_64_1), dimensions={}
+  %multiply.5 = f32[1,512]{1,0} multiply(%bitcast.324.3, %broadcast.40.3), metadata={op_name="jit(forward)/jit(main)/ResNet/div" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  %bitcast.404 = f32[512]{0} bitcast(%multiply.5), metadata={op_name="jit(forward)/jit(main)/ResNet/div" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  %broadcast.41.5 = f32[1000,512]{1,0} broadcast(%bitcast.404), dimensions={1}, metadata={op_name="jit(forward)/jit(main)/ResNet/Dense_0/dot_general" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  %param_0.17 = f32[1000,512]{1,0} parameter(0)
+  %multiply.1.3 = f32[1000,512]{1,0} multiply(%broadcast.41.5, %param_0.17)
+  %constant_24_2 = f32[] constant(0)
+  ROOT %reduce.5 = f32[1000]{0} reduce(%multiply.1.3, %constant_24_2), dimensions={1}, to_apply=%region_1.165.clone, metadata={op_name="jit(forward)/jit(main)/ResNet/Dense_0/dot_general" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+
+%region_0.59 (Arg_0.56: f32[], Arg_1.57: f32[]) -> f32[] {
+  %Arg_1.57 = f32[] parameter(1), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_window_max"}
+  %Arg_0.56 = f32[] parameter(0), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_window_max"}
+  ROOT %maximum.58.0 = f32[] maximum(%Arg_0.56, %Arg_1.57), metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_window_max" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+
+%fused_reduce_window (param_0.22: f32[1,64,256,256]) -> f32[1,64,128,128] {
+  %param_0.22 = f32[1,64,256,256]{3,2,1,0} parameter(0)
+  %constant_25_1 = f32[] constant(-inf)
+  ROOT %reduce-window.2 = f32[1,64,128,128]{3,2,1,0} reduce-window(%param_0.22, %constant_25_1), window={size=1x1x3x3 stride=1x1x2x2 pad=0_0x0_0x1_1x1_1}, to_apply=%region_0.59, metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_window_max" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+
+%fused_broadcast () -> f32[64] {
+  %constant_24_3 = f32[] constant(0)
+  ROOT %broadcast.42.1 = f32[64]{0} broadcast(%constant_24_3), dimensions={}
+}
+
+%fused_broadcast.2 () -> f32[128] {
+  %constant_24_5 = f32[] constant(0)
+  ROOT %broadcast.47.1 = f32[128]{0} broadcast(%constant_24_5), dimensions={}
+}
+
+%fused_broadcast.1 () -> f32[256] {
+  %constant_24_4 = f32[] constant(0)
+  ROOT %broadcast.53.1 = f32[256]{0} broadcast(%constant_24_4), dimensions={}
+}
+
+%fused_broadcast.3 () -> f32[512] {
+  %constant_24_6 = f32[] constant(0)
+  ROOT %broadcast.58.1 = f32[512]{0} broadcast(%constant_24_6), dimensions={}
+}
+
+%fused_transpose (param_0.5: f32[1,512,512,3]) -> f32[3,262144] {
+  %param_0.5 = f32[1,512,512,3]{3,2,1,0} parameter(0)
+  %bitcast.249.1 = f32[262144,3]{1,0} bitcast(%param_0.5), metadata={op_name="inp"}
+  ROOT %transpose.2.1 = f32[3,262144]{1,0} transpose(%bitcast.249.1), dimensions={1,0}, metadata={op_name="inp"}
+}
+
+%command_buffer (p: f32[1,512,512,3]) -> (f32[64], f32[128], f32[256], f32[512], f32[3,262144]) {
+  %p = f32[1,512,512,3]{3,2,1,0} parameter(0)
+  %loop_broadcast_fusion = f32[64]{0} fusion(), kind=kLoop, calls=%fused_broadcast
+  %loop_broadcast_fusion.2 = f32[128]{0} fusion(), kind=kLoop, calls=%fused_broadcast.2
+  %loop_broadcast_fusion.1 = f32[256]{0} fusion(), kind=kLoop, calls=%fused_broadcast.1
+  %loop_broadcast_fusion.3 = f32[512]{0} fusion(), kind=kLoop, calls=%fused_broadcast.3
+  %loop_transpose_fusion = f32[3,262144]{1,0} fusion(%p), kind=kLoop, calls=%fused_transpose, metadata={op_name="inp"}
+  ROOT %tuple.40 = (f32[64]{0}, f32[128]{0}, f32[256]{0}, f32[512]{0}, f32[3,262144]{1,0}) tuple(%loop_broadcast_fusion, %loop_broadcast_fusion.2, %loop_broadcast_fusion.1, %loop_broadcast_fusion.3, %loop_transpose_fusion)
+}
+
+ENTRY %main.169 (Arg_0.1: f32[1,512,512,3]) -> f32[1,1000] {
+  %constant_67_0 = f32[1000,512]{1,0} constant({...})
+  %constant_45_0 = f32[512,512,3,3]{3,2,1,0} constant({...})
+  %constant_44_0 = f32[512,512,3,3]{3,2,1,0} constant({...})
+  %constant_43_0 = f32[512,256,1,1]{3,2,1,0} constant({...})
+  %constant_42_0 = f32[512,512,3,3]{3,2,1,0} constant({...})
+  %constant_41_0 = f32[512,256,3,3]{3,2,1,0} constant({...})
+  %constant_40_0 = f32[256,256,3,3]{3,2,1,0} constant({...})
+  %constant_39_0 = f32[256,256,3,3]{3,2,1,0} constant({...})
+  %constant_38_0 = f32[256,128,1,1]{3,2,1,0} constant({...})
+  %constant_37_0 = f32[256,256,3,3]{3,2,1,0} constant({...})
+  %constant_36_0 = f32[256,128,3,3]{3,2,1,0} constant({...})
+  %constant_35_0 = f32[128,128,3,3]{3,2,1,0} constant({...})
+  %constant_34_0 = f32[128,128,3,3]{3,2,1,0} constant({...})
+  %constant_33_0 = f32[128,64,1,1]{3,2,1,0} constant({...})
+  %constant_32_0 = f32[128,128,3,3]{3,2,1,0} constant({...})
+  %constant_31_0 = f32[128,64,3,3]{3,2,1,0} constant({...})
+  %constant_30_0 = f32[64,64,3,3]{3,2,1,0} constant({...})
+  %constant_29_0 = f32[64,64,3,3]{3,2,1,0} constant({...})
+  %constant_28_0 = f32[64,64,3,3]{3,2,1,0} constant({...})
+  %constant_27_0 = f32[64,64,3,3]{3,2,1,0} constant({...})
+  %constant_26_0 = f32[64,3,7,7]{3,2,1,0} constant({...})
+  %Arg_0.1 = f32[1,512,512,3]{3,2,1,0} parameter(0), metadata={op_name="inp"}
+  %call = (f32[64]{0}, f32[128]{0}, f32[256]{0}, f32[512]{0}, f32[3,262144]{1,0}) call(%Arg_0.1), to_apply=%command_buffer
+  %get-tuple-element.88 = f32[64]{0} get-tuple-element(%call), index=0
+  %get-tuple-element.89 = f32[128]{0} get-tuple-element(%call), index=1
+  %get-tuple-element.90 = f32[256]{0} get-tuple-element(%call), index=2
+  %get-tuple-element.91 = f32[512]{0} get-tuple-element(%call), index=3
+  %get-tuple-element.92 = f32[3,262144]{1,0} get-tuple-element(%call), index=4
+  %bitcast.250.0 = f32[1,3,512,512]{3,2,1,0} bitcast(%get-tuple-element.92), metadata={op_name="inp"}
+  %cudnn-conv-bias-activation.36 = (f32[1,64,256,256]{3,2,1,0}, u8[393344]{0}) custom-call(%bitcast.250.0, %constant_26_0, %get-tuple-element.88), window={size=7x7 stride=2x2 pad=3_3x3_3}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"20","math_type":"DEFAULT_MATH","tuning_knobs":{"4":"3","2":"1","19":"0","7":"0","5":"1","6":"0"},"is_cudnn_frontend":false,"workspace_size":"393344"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.28.0 = f32[1,64,256,256]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.36), index=0
+  %loop_reduce_window_fusion = f32[1,64,128,128]{3,2,1,0} fusion(%get-tuple-element.28.0), kind=kLoop, calls=%fused_reduce_window, metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_window_max" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  %cudnn-conv-bias-activation.37 = (f32[1,64,128,128]{3,2,1,0}, u8[409856]{0}) custom-call(%loop_reduce_window_fusion, %constant_27_0, %get-tuple-element.88), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_0/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"10":"1","7":"1","6":"0","5":"1"},"is_cudnn_frontend":false,"workspace_size":"409856"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.30.0 = f32[1,64,128,128]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.37), index=0
+  %cudnn-conv-bias-activation.38 = (f32[1,64,128,128]{3,2,1,0}, u8[409856]{0}) custom-call(%get-tuple-element.30.0, %constant_28_0, %get-tuple-element.88, %loop_reduce_window_fusion), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_0/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"6":"0","7":"1","10":"1","5":"1"},"is_cudnn_frontend":false,"workspace_size":"409856"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.32.0 = f32[1,64,128,128]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.38), index=0
+  %cudnn-conv-bias-activation.39 = (f32[1,64,128,128]{3,2,1,0}, u8[409856]{0}) custom-call(%get-tuple-element.32.0, %constant_29_0, %get-tuple-element.88), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_1/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"5":"1","10":"1","6":"0","7":"1"},"is_cudnn_frontend":false,"workspace_size":"409856"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.34.0 = f32[1,64,128,128]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.39), index=0
+  %cudnn-conv-bias-activation.40 = (f32[1,64,128,128]{3,2,1,0}, u8[409856]{0}) custom-call(%get-tuple-element.34.0, %constant_30_0, %get-tuple-element.88, %get-tuple-element.32.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_1/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"5":"1","10":"1","6":"0","7":"1"},"is_cudnn_frontend":false,"workspace_size":"409856"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.36.0 = f32[1,64,128,128]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.40), index=0
+  %cudnn-conv-bias-activation.42 = (f32[1,128,64,64]{3,2,1,0}, u8[24704]{0}) custom-call(%get-tuple-element.36.0, %constant_33_0, %get-tuple-element.89), window={size=1x1 stride=2x2}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_2/Conv_2/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"20","math_type":"DEFAULT_MATH","tuning_knobs":{"7":"0","5":"1","6":"0","4":"0","2":"0","19":"0"},"is_cudnn_frontend":false,"workspace_size":"24704"},"conv_result_scale":0.99999499320983887,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.40.0 = f32[1,128,64,64]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.42), index=0
+  %cudnn-conv-bias-activation.41 = (f32[1,128,64,64]{3,2,1,0}, u8[24704]{0}) custom-call(%get-tuple-element.36.0, %constant_31_0, %get-tuple-element.89), window={size=3x3 stride=2x2 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_2/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"20","math_type":"DEFAULT_MATH","tuning_knobs":{"6":"0","4":"3","7":"0","2":"1","19":"0","5":"1"},"is_cudnn_frontend":false,"workspace_size":"24704"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.38.0 = f32[1,128,64,64]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.41), index=0
+  %cudnn-conv-bias-activation.43 = (f32[1,128,64,64]{3,2,1,0}, u8[1638912]{0}) custom-call(%get-tuple-element.38.0, %constant_32_0, %get-tuple-element.89, %get-tuple-element.40.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_2/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"10":"1","7":"1","5":"1","6":"0"},"is_cudnn_frontend":false,"workspace_size":"1638912"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.42.0 = f32[1,128,64,64]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.43), index=0
+  %cudnn-conv-bias-activation.44 = (f32[1,128,64,64]{3,2,1,0}, u8[1638912]{0}) custom-call(%get-tuple-element.42.0, %constant_34_0, %get-tuple-element.89), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_3/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"10":"1","5":"1","6":"0","7":"1"},"is_cudnn_frontend":false,"workspace_size":"1638912"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.44.0 = f32[1,128,64,64]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.44), index=0
+  %cudnn-conv-bias-activation.45 = (f32[1,128,64,64]{3,2,1,0}, u8[1638912]{0}) custom-call(%get-tuple-element.44.0, %constant_35_0, %get-tuple-element.89, %get-tuple-element.42.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_3/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"7":"1","6":"0","5":"1","10":"1"},"is_cudnn_frontend":false,"workspace_size":"1638912"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.46.0 = f32[1,128,64,64]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.45), index=0
+  %cudnn-conv-bias-activation.47 = (f32[1,256,32,32]{3,2,1,0}, u8[6272]{0}) custom-call(%get-tuple-element.46.0, %constant_38_0, %get-tuple-element.90), window={size=1x1 stride=2x2}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_4/Conv_2/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"20","math_type":"DEFAULT_MATH","tuning_knobs":{"2":"0","7":"0","19":"0","5":"1","6":"0","4":"0"},"is_cudnn_frontend":false,"workspace_size":"6272"},"conv_result_scale":0.99999499320983887,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.50.0 = f32[1,256,32,32]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.47), index=0
+  %cudnn-conv-bias-activation.46 = (f32[1,256,32,32]{3,2,1,0}, u8[6272]{0}) custom-call(%get-tuple-element.46.0, %constant_36_0, %get-tuple-element.90), window={size=3x3 stride=2x2 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_4/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"20","math_type":"DEFAULT_MATH","tuning_knobs":{"6":"0","4":"3","7":"0","19":"0","5":"1","2":"1"},"is_cudnn_frontend":false,"workspace_size":"6272"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.48.0 = f32[1,256,32,32]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.46), index=0
+  %cudnn-conv-bias-activation.48 = (f32[1,256,32,32]{3,2,1,0}, u8[6554624]{0}) custom-call(%get-tuple-element.48.0, %constant_37_0, %get-tuple-element.90, %get-tuple-element.50.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_4/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"10":"1","5":"1","6":"0","7":"1"},"is_cudnn_frontend":false,"workspace_size":"6554624"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.52.0 = f32[1,256,32,32]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.48), index=0
+  %cudnn-conv-bias-activation.49 = (f32[1,256,32,32]{3,2,1,0}, u8[6554624]{0}) custom-call(%get-tuple-element.52.0, %constant_39_0, %get-tuple-element.90), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_5/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"6":"0","5":"1","10":"1","7":"1"},"is_cudnn_frontend":false,"workspace_size":"6554624"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.54.0 = f32[1,256,32,32]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.49), index=0
+  %cudnn-conv-bias-activation.50 = (f32[1,256,32,32]{3,2,1,0}, u8[6554624]{0}) custom-call(%get-tuple-element.54.0, %constant_40_0, %get-tuple-element.90, %get-tuple-element.52.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_5/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"5":"1","6":"0","10":"1","7":"1"},"is_cudnn_frontend":false,"workspace_size":"6554624"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.56.0 = f32[1,256,32,32]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.50), index=0
+  %cudnn-conv-bias-activation.52 = (f32[1,512,16,16]{3,2,1,0}, u8[1664]{0}) custom-call(%get-tuple-element.56.0, %constant_43_0, %get-tuple-element.91), window={size=1x1 stride=2x2}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_6/Conv_2/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"20","math_type":"DEFAULT_MATH","tuning_knobs":{"5":"1","6":"0","4":"0","2":"1","19":"0","7":"0"},"is_cudnn_frontend":false,"workspace_size":"1664"},"conv_result_scale":0.99999499320983887,"activation_mode":"kNone","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.60.0 = f32[1,512,16,16]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.52), index=0
+  %cudnn-conv-bias-activation.51 = (f32[1,512,16,16]{3,2,1,0}, u8[6291472]{0}) custom-call(%get-tuple-element.56.0, %constant_41_0, %get-tuple-element.91), window={size=3x3 stride=2x2 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_6/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"33","math_type":"DEFAULT_MATH","tuning_knobs":{"2":"2","14":"0","13":"1","6":"2","22":"1"},"is_cudnn_frontend":false,"workspace_size":"6291472"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.58.0 = f32[1,512,16,16]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.51), index=0
+  %cudnn-conv-bias-activation.53 = (f32[1,512,16,16]{3,2,1,0}, u8[26216448]{0}) custom-call(%get-tuple-element.58.0, %constant_42_0, %get-tuple-element.91, %get-tuple-element.60.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_6/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"6":"0","7":"1","10":"1","5":"1"},"is_cudnn_frontend":false,"workspace_size":"26216448"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.62.0 = f32[1,512,16,16]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.53), index=0
+  %cudnn-conv-bias-activation.54 = (f32[1,512,16,16]{3,2,1,0}, u8[26216448]{0}) custom-call(%get-tuple-element.62.0, %constant_44_0, %get-tuple-element.91), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_7/Conv_0/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"5":"1","6":"0","7":"1","10":"1"},"is_cudnn_frontend":false,"workspace_size":"26216448"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":0,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.64.0 = f32[1,512,16,16]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.54), index=0
+  %cudnn-conv-bias-activation.55 = (f32[1,512,16,16]{3,2,1,0}, u8[26216448]{0}) custom-call(%get-tuple-element.64.0, %constant_45_0, %get-tuple-element.91, %get-tuple-element.62.0), window={size=3x3 pad=1_1x1_1}, dim_labels=bf01_oi01->bf01, custom_call_target="__cudnn$convBiasActivationForward", metadata={op_name="jit(forward)/jit(main)/ResNet/BasicBlock_7/Conv_1/conv_general_dilated" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}, backend_config={"operation_queue_id":"0","wait_on_operation_queues":[],"cudnn_conv_backend_config":{"algorithm":{"algo_id":"15","math_type":"DEFAULT_MATH","tuning_knobs":{"10":"1","5":"1","6":"0","7":"1"},"is_cudnn_frontend":false,"workspace_size":"26216448"},"conv_result_scale":0.99999499320983887,"activation_mode":"kRelu","side_input_scale":1,"leakyrelu_alpha":0},"force_earliest_schedule":false,"reification_cost":[]}
+  %get-tuple-element.66.0 = f32[1,512,16,16]{3,2,1,0} get-tuple-element(%cudnn-conv-bias-activation.55), index=0
+  %input_reduce_fusion = f32[512]{0} fusion(%get-tuple-element.66.0), kind=kInput, calls=%fused_reduce, metadata={op_name="jit(forward)/jit(main)/ResNet/reduce_sum" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  %input_reduce_fusion.1 = f32[1000]{0} fusion(%constant_67_0, %input_reduce_fusion), kind=kInput, calls=%fused_reduce.1, metadata={op_name="jit(forward)/jit(main)/ResNet/Dense_0/dot_general" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+  ROOT %bitcast.1.0 = f32[1,1000]{1,0} bitcast(%input_reduce_fusion.1), metadata={op_name="jit(forward)/jit(main)/ResNet/Dense_0/dot_general" source_file="/home/kamei/Documentos/projects/tcc/cnnbench_modular/cnnbench/models/resnet_jax.py" source_line=28}
+}
+

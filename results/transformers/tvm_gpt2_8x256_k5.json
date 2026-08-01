@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "tvm",
+    "model": "gpt2",
+    "input": {
+      "batch": 8,
+      "seq_len": 256
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 6540.272456599996,
+    "compile_ms_std": 13.965810208831273,
+    "compile_ms_ci95": 17.33806374843059,
+    "compile_samples_ms": [
+      6544.1972,
+      6548.9974,
+      6532.1577,
+      6555.5052,
+      6520.5048
+    ],
+    "ttfb_ms": 6969.660000400018,
+    "exec_ms": 415.1305316,
+    "exec_ms_std": 1.2309910017979289,
+    "exec_run_means_ms": [
+      415.7285,
+      414.9793,
+      414.9022,
+      414.98,
+      415.0627
+    ],
+    "exec_run_means_ms_std": 0.339071016157321,
+    "exec_ms_ci95": 0.4209447791051386,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "tvm": "0.22.dev0",
+      "torch": "2.5.1+cu124"
+    },
+    "model_info": {
+      "model": "gpt2",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 50257,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-1tc0binf/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-1tc0binf/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-1tc0binf/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "tvm_call_tir_total": 512,
+        "tvm_cls_total": 34,
+        "code_size_bytes": 139566,
+        "code_lines": 1362
+      },
+      "capture_method": "tvmscript",
+      "replicate_paths": [
+        "ir_dumps/transformers/tvm/1785588305678_gpt2_8x256/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785588349090_gpt2_8x256/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785588392468_gpt2_8x256/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785588435923_gpt2_8x256/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785588479264_gpt2_8x256/fused_tvmscript.py"
+      ],
+      "replicate_summaries_identical": true
+    }
+  }
+}

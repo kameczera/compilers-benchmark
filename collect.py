@@ -34,6 +34,12 @@ def main() -> None:
             "CUDA_HOME": os.environ.get("CUDA_HOME"),
             "LD_LIBRARY_PATH": os.environ.get("LD_LIBRARY_PATH"),
             "XLA_FLAGS": os.environ.get("XLA_FLAGS"),
+            "XLA_PYTHON_CLIENT_PREALLOCATE": os.environ.get(
+                "XLA_PYTHON_CLIENT_PREALLOCATE"
+            ),
+            "XLA_PYTHON_CLIENT_MEM_FRACTION": os.environ.get(
+                "XLA_PYTHON_CLIENT_MEM_FRACTION"
+            ),
         },
         "commands": {
             "nvidia_smi": run_cmd(["nvidia-smi"]),
@@ -75,12 +81,15 @@ def main() -> None:
     try:
         import jax
         import jaxlib
+        from jax._src.lib import cuda_versions
 
         info["python_packages"]["jax"] = {
             "version": jax.__version__,
             "jaxlib_version": jaxlib.__version__,
             "default_backend": jax.default_backend(),
             "devices": [str(d) for d in jax.devices()],
+            "cudnn_build_version": int(cuda_versions.cudnn_build_version()),
+            "cudnn_runtime_version": int(cuda_versions.cudnn_get_version()),
         }
     except Exception as e:
         info["python_packages"]["jax_error"] = repr(e)

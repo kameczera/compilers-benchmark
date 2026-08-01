@@ -1,0 +1,946 @@
+{
+  "method": {
+    "experimental_unit": "independent cold-process mean",
+    "test": "two-sided Welch independent-samples t-test",
+    "confidence_interval": "unadjusted two-sided 95% CI on fold-base",
+    "multiple_testing": "Holm correction at alpha=0.05, separately within each family of ten ResNet input comparisons"
+  },
+  "families": {
+    "compile_after_preprocessing": [
+      {
+        "model": "resnet18",
+        "shape": "1x3x224x224",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          12396.5215,
+          10937.2894,
+          13192.6129,
+          11604.5191,
+          10696.2261
+        ],
+        "fold_process_means": [
+          6824.9432,
+          6800.8059,
+          7322.3833,
+          6736.2609,
+          6958.9918
+        ],
+        "base_mean": 11765.4338,
+        "fold_mean": 6928.67702,
+        "fold_minus_base": -4836.756780000001,
+        "relative_change_percent": -41.109889037835565,
+        "welch_df": 4.409286870700697,
+        "p_value": 0.00031464081243009876,
+        "ci95_fold_minus_base": [
+          -6108.324978619019,
+          -3565.188581380982
+        ],
+        "p_holm": 0.001258563249720395,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "16x3x224x224",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          14805.9384,
+          15767.366,
+          13633.0453,
+          14730.7897,
+          15854.3392
+        ],
+        "fold_process_means": [
+          8898.3869,
+          9150.0068,
+          8715.6925,
+          9125.049,
+          9240.253
+        ],
+        "base_mean": 14958.29572,
+        "fold_mean": 9025.87764,
+        "fold_minus_base": -5932.4180799999995,
+        "relative_change_percent": -39.659719202288905,
+        "welch_df": 4.445391089932863,
+        "p_value": 7.058509962157332e-05,
+        "ci95_fold_minus_base": [
+          -7044.993012755775,
+          -4819.8431472442235
+        ],
+        "p_holm": 0.0006352658965941599,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "64x3x224x224",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          12143.2032,
+          12992.7411,
+          12637.7195,
+          13716.7304,
+          14090.1021
+        ],
+        "fold_process_means": [
+          9368.4473,
+          8969.1132,
+          9433.2262,
+          9061.7558,
+          9399.6283
+        ],
+        "base_mean": 13116.099259999999,
+        "fold_mean": 9246.434159999999,
+        "fold_minus_base": -3869.6651,
+        "relative_change_percent": -29.50317028936544,
+        "welch_df": 4.586438964179532,
+        "p_value": 0.00021631495978901587,
+        "ci95_fold_minus_base": [
+          -4837.528918910575,
+          -2901.8012810894247
+        ],
+        "p_holm": 0.0010815747989450794,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "1x3x512x512",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          17744.4916,
+          15143.6345,
+          15488.4576,
+          13996.2915,
+          15345.0543
+        ],
+        "fold_process_means": [
+          9957.9482,
+          8487.1073,
+          11086.6249,
+          10115.8743,
+          11358.0038
+        ],
+        "base_mean": 15543.5859,
+        "fold_mean": 10201.111700000001,
+        "fold_minus_base": -5342.474199999999,
+        "relative_change_percent": -34.37092466545959,
+        "welch_df": 7.737713018072401,
+        "p_value": 0.00017072885694358205,
+        "ci95_fold_minus_base": [
+          -7181.270421967798,
+          -3503.6779780321995
+        ],
+        "p_holm": 0.0010584996989866436,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "1x3x1024x1024",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          17233.4991,
+          15095.2733,
+          17159.51,
+          15515.7592,
+          17506.8772
+        ],
+        "fold_process_means": [
+          10122.9331,
+          9761.5759,
+          10029.6728,
+          10584.1088,
+          10437.7415
+        ],
+        "base_mean": 16502.18376,
+        "fold_mean": 10187.206419999999,
+        "fold_minus_base": -6314.977340000001,
+        "relative_change_percent": -38.26752526721349,
+        "welch_df": 4.693323201166621,
+        "p_value": 9.851461137709537e-05,
+        "ci95_fold_minus_base": [
+          -7672.211259888783,
+          -4957.743420111219
+        ],
+        "p_holm": 0.0007881168910167629,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x224x224",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          26192.6823,
+          24331.4797,
+          21982.1504,
+          25002.7576,
+          24612.8665
+        ],
+        "fold_process_means": [
+          18528.7112,
+          17366.6738,
+          16806.8736,
+          17049.9048,
+          17383.014
+        ],
+        "base_mean": 24424.3873,
+        "fold_mean": 17427.03548,
+        "fold_minus_base": -6997.35182,
+        "relative_change_percent": -28.64903726776393,
+        "welch_df": 5.426550939795664,
+        "p_value": 0.00015121424271237767,
+        "ci95_fold_minus_base": [
+          -8877.751746926391,
+          -5116.9518930736085
+        ],
+        "p_holm": 0.0010584996989866436,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "16x3x224x224",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          22136.4364,
+          23416.1753,
+          21922.2582,
+          21242.1527,
+          23880.046
+        ],
+        "fold_process_means": [
+          18973.7834,
+          20053.9468,
+          19840.8693,
+          20134.5124,
+          19498.6227
+        ],
+        "base_mean": 22519.41372,
+        "fold_mean": 19700.34692,
+        "fold_minus_base": -2819.0668000000005,
+        "relative_change_percent": -12.518384515029908,
+        "welch_df": 5.454634150675102,
+        "p_value": 0.002489214349805227,
+        "ci95_fold_minus_base": [
+          -4156.746153979328,
+          -1481.3874460206735
+        ],
+        "p_holm": 0.007467643049415681,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "64x3x224x224",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          22299.3296,
+          20779.5704,
+          21486.0812,
+          22007.1164,
+          21872.0064
+        ],
+        "fold_process_means": [
+          21120.7211,
+          21087.7174,
+          21544.692,
+          21374.8589,
+          21271.7187
+        ],
+        "base_mean": 21688.8208,
+        "fold_mean": 21279.941619999998,
+        "fold_minus_base": -408.87918000000354,
+        "relative_change_percent": -1.8852070556090514,
+        "welch_df": 4.81423279849998,
+        "p_value": 0.19995109434132774,
+        "ci95_fold_minus_base": [
+          -1125.1126755829914,
+          307.3543155829842
+        ],
+        "p_holm": 0.19995109434132774,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x512x512",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          25016.091,
+          21407.0817,
+          22607.1168,
+          22878.4064,
+          24197.2682
+        ],
+        "fold_process_means": [
+          19245.4426,
+          19573.8722,
+          19520.6433,
+          19039.138,
+          19794.7744
+        ],
+        "base_mean": 23221.192819999997,
+        "fold_mean": 19434.7741,
+        "fold_minus_base": -3786.418719999998,
+        "relative_change_percent": -16.305875194916016,
+        "welch_df": 4.349778540021608,
+        "p_value": 0.0032135570065435584,
+        "ci95_fold_minus_base": [
+          -5520.604219681436,
+          -2052.2332203185597
+        ],
+        "p_holm": 0.007467643049415681,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x1024x1024",
+        "metric": "compile_after_preprocessing",
+        "base_process_means": [
+          24416.3952,
+          23201.3365,
+          24219.9424,
+          23308.8245,
+          24022.5156
+        ],
+        "fold_process_means": [
+          21164.0663,
+          21309.436,
+          20969.3086,
+          20594.1225,
+          21119.5655
+        ],
+        "base_mean": 23833.80284,
+        "fold_mean": 21031.299779999998,
+        "fold_minus_base": -2802.5030600000027,
+        "relative_change_percent": -11.758522459943293,
+        "welch_df": 5.870197909461337,
+        "p_value": 5.801199431815349e-05,
+        "ci95_fold_minus_base": [
+          -3475.661925722814,
+          -2129.3441942771915
+        ],
+        "p_holm": 0.000580119943181535,
+        "reject_holm_0_05": true
+      }
+    ],
+    "fixed_cost_including_fold": [
+      {
+        "model": "resnet18",
+        "shape": "1x3x224x224",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          12396.5215,
+          10937.2894,
+          13192.6129,
+          11604.5191,
+          10696.2261
+        ],
+        "fold_process_means": [
+          6931.3615,
+          6904.1503,
+          7422.816400000001,
+          6836.9696,
+          7060.5239
+        ],
+        "base_mean": 11765.4338,
+        "fold_mean": 7031.16434,
+        "fold_minus_base": -4734.26946,
+        "relative_change_percent": -40.238800714683386,
+        "welch_df": 4.405584080857103,
+        "p_value": 0.00034585999169564337,
+        "ci95_fold_minus_base": [
+          -6005.929627484024,
+          -3462.6092925159764
+        ],
+        "p_holm": 0.0013834399667825735,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "16x3x224x224",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          14805.9384,
+          15767.366,
+          13633.0453,
+          14730.7897,
+          15854.3392
+        ],
+        "fold_process_means": [
+          8999.3655,
+          9252.3434,
+          8816.0819,
+          9226.706900000001,
+          9341.4086
+        ],
+        "base_mean": 14958.29572,
+        "fold_mean": 9127.18126,
+        "fold_minus_base": -5831.114460000001,
+        "relative_change_percent": -38.982478814103835,
+        "welch_df": 4.447597089533213,
+        "p_value": 7.58843496543579e-05,
+        "ci95_fold_minus_base": [
+          -6943.644775670459,
+          -4718.584144329542
+        ],
+        "p_holm": 0.0007398951370746656,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "64x3x224x224",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          12143.2032,
+          12992.7411,
+          12637.7195,
+          13716.7304,
+          14090.1021
+        ],
+        "fold_process_means": [
+          9470.125399999999,
+          9070.8094,
+          9535.358499999998,
+          9165.1327,
+          9501.9359
+        ],
+        "base_mean": 13116.099259999999,
+        "fold_mean": 9348.67238,
+        "fold_minus_base": -3767.426879999999,
+        "relative_change_percent": -28.723683812682577,
+        "welch_df": 4.58557937204864,
+        "p_value": 0.00024374545797402995,
+        "ci95_fold_minus_base": [
+          -4735.302021080455,
+          -2799.5517389195434
+        ],
+        "p_holm": 0.0012187272898701498,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "1x3x512x512",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          17744.4916,
+          15143.6345,
+          15488.4576,
+          13996.2915,
+          15345.0543
+        ],
+        "fold_process_means": [
+          10059.8017,
+          8588.9322,
+          11188.505500000001,
+          10218.8782,
+          11460.3567
+        ],
+        "base_mean": 15543.5859,
+        "fold_mean": 10303.29486,
+        "fold_minus_base": -5240.29104,
+        "relative_change_percent": -33.71352706970919,
+        "welch_df": 7.7380002209431655,
+        "p_value": 0.00019436492798916892,
+        "ci95_fold_minus_base": [
+          -7079.155868354937,
+          -3401.4262116450627
+        ],
+        "p_holm": 0.0011661895679350135,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet18",
+        "shape": "1x3x1024x1024",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          17233.4991,
+          15095.2733,
+          17159.51,
+          15515.7592,
+          17506.8772
+        ],
+        "fold_process_means": [
+          10225.8289,
+          9864.5169,
+          10132.3688,
+          10686.6394,
+          10540.4383
+        ],
+        "base_mean": 16502.18376,
+        "fold_mean": 10289.958460000002,
+        "fold_minus_base": -6212.225299999998,
+        "relative_change_percent": -37.64486803896794,
+        "welch_df": 4.692744089307341,
+        "p_value": 0.00010624848074708564,
+        "ci95_fold_minus_base": [
+          -7569.467355744228,
+          -4854.983244255768
+        ],
+        "p_holm": 0.0008499878459766852,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x224x224",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          26192.6823,
+          24331.4797,
+          21982.1504,
+          25002.7576,
+          24612.8665
+        ],
+        "fold_process_means": [
+          18645.0296,
+          17483.852600000002,
+          16924.5405,
+          17168.1862,
+          17501.194199999998
+        ],
+        "base_mean": 24424.3873,
+        "fold_mean": 17544.56062,
+        "fold_minus_base": -6879.826679999998,
+        "relative_change_percent": -28.167857786958688,
+        "welch_df": 5.423941275521021,
+        "p_value": 0.00016529548973682069,
+        "ci95_fold_minus_base": [
+          -8760.186873324852,
+          -4999.466486675145
+        ],
+        "p_holm": 0.0011570684281577447,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "16x3x224x224",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          22136.4364,
+          23416.1753,
+          21922.2582,
+          21242.1527,
+          23880.046
+        ],
+        "fold_process_means": [
+          19088.5345,
+          20170.2791,
+          19955.935899999997,
+          20251.3396,
+          19613.3838
+        ],
+        "base_mean": 22519.41372,
+        "fold_mean": 19815.89458,
+        "fold_minus_base": -2703.5191400000003,
+        "relative_change_percent": -12.005282080673991,
+        "welch_df": 5.4591540421203,
+        "p_value": 0.0030206125252469256,
+        "ci95_fold_minus_base": [
+          -4041.251700197129,
+          -1365.7865798028718
+        ],
+        "p_holm": 0.009061837575740778,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "64x3x224x224",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          22299.3296,
+          20779.5704,
+          21486.0812,
+          22007.1164,
+          21872.0064
+        ],
+        "fold_process_means": [
+          21234.4207,
+          21203.5988,
+          21660.7091,
+          21489.6321,
+          21386.541400000002
+        ],
+        "base_mean": 21688.8208,
+        "fold_mean": 21394.98042,
+        "fold_minus_base": -293.84038000000146,
+        "relative_change_percent": -1.3548010872034197,
+        "welch_df": 4.817485121817677,
+        "p_value": 0.3365976842699245,
+        "ci95_fold_minus_base": [
+          -1010.0579426726242,
+          422.3771826726213
+        ],
+        "p_holm": 0.3365976842699245,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x512x512",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          25016.091,
+          21407.0817,
+          22607.1168,
+          22878.4064,
+          24197.2682
+        ],
+        "fold_process_means": [
+          19362.086499999998,
+          19691.744700000003,
+          19637.0949,
+          19157.7264,
+          19911.314199999997
+        ],
+        "base_mean": 23221.192819999997,
+        "fold_mean": 19551.993339999997,
+        "fold_minus_base": -3669.1994799999993,
+        "relative_change_percent": -15.801080971343486,
+        "welch_df": 4.3484783426518145,
+        "p_value": 0.003638107114482044,
+        "ci95_fold_minus_base": [
+          -5403.433725256277,
+          -1934.965234743721
+        ],
+        "p_holm": 0.009061837575740778,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x1024x1024",
+        "metric": "fixed_cost_including_fold",
+        "base_process_means": [
+          24416.3952,
+          23201.3365,
+          24219.9424,
+          23308.8245,
+          24022.5156
+        ],
+        "fold_process_means": [
+          21282.1547,
+          21425.6581,
+          21089.1898,
+          20711.690300000002,
+          21237.95
+        ],
+        "base_mean": 23833.80284,
+        "fold_mean": 21149.328579999998,
+        "fold_minus_base": -2684.4742600000027,
+        "relative_change_percent": -11.263306481224557,
+        "welch_df": 5.866054227298255,
+        "p_value": 7.398951370746657e-05,
+        "ci95_fold_minus_base": [
+          -3357.583688601328,
+          -2011.3648313986773
+        ],
+        "p_holm": 0.0007398951370746656,
+        "reject_holm_0_05": true
+      }
+    ],
+    "execution": [
+      {
+        "model": "resnet18",
+        "shape": "1x3x224x224",
+        "metric": "execution",
+        "base_process_means": [
+          1.8449,
+          1.9178,
+          1.8954,
+          1.8401,
+          1.8817
+        ],
+        "fold_process_means": [
+          1.8665,
+          1.8385,
+          1.8337,
+          1.8596,
+          1.9008
+        ],
+        "base_mean": 1.8759799999999998,
+        "fold_mean": 1.8598200000000003,
+        "fold_minus_base": -0.016159999999999508,
+        "relative_change_percent": -0.8614164330109868,
+        "welch_df": 7.6518799764927525,
+        "p_value": 0.42247019505368233,
+        "ci95_fold_minus_base": [
+          -0.060485082359840986,
+          0.02816508235984197
+        ],
+        "p_holm": 1.0,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet18",
+        "shape": "16x3x224x224",
+        "metric": "execution",
+        "base_process_means": [
+          11.6945,
+          12.0393,
+          11.8396,
+          12.0028,
+          11.7214
+        ],
+        "fold_process_means": [
+          11.8459,
+          11.7847,
+          11.6223,
+          11.8498,
+          11.842
+        ],
+        "base_mean": 11.85952,
+        "fold_mean": 11.78894,
+        "fold_minus_base": -0.07057999999999964,
+        "relative_change_percent": -0.5951336984970694,
+        "welch_df": 6.641642494242972,
+        "p_value": 0.42363511552996036,
+        "ci95_fold_minus_base": [
+          -0.26852523959132474,
+          0.12736523959132545
+        ],
+        "p_holm": 1.0,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet18",
+        "shape": "64x3x224x224",
+        "metric": "execution",
+        "base_process_means": [
+          42.3885,
+          42.4682,
+          42.3665,
+          42.6436,
+          42.3023
+        ],
+        "fold_process_means": [
+          42.2728,
+          42.4132,
+          42.2318,
+          42.3352,
+          42.0439
+        ],
+        "base_mean": 42.433820000000004,
+        "fold_mean": 42.25938,
+        "fold_minus_base": -0.17444000000000415,
+        "relative_change_percent": -0.4110871941295979,
+        "welch_df": 7.977716103199194,
+        "p_value": 0.07545771000143849,
+        "ci95_fold_minus_base": [
+          -0.37146278698764196,
+          0.022582786987633663
+        ],
+        "p_holm": 0.45274626000863094,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet18",
+        "shape": "1x3x512x512",
+        "metric": "execution",
+        "base_process_means": [
+          4.8412,
+          4.7798,
+          4.7635,
+          4.9148,
+          4.9575
+        ],
+        "fold_process_means": [
+          4.8338,
+          4.9512,
+          4.7208,
+          4.7104,
+          4.7899
+        ],
+        "base_mean": 4.85136,
+        "fold_mean": 4.80122,
+        "fold_minus_base": -0.05013999999999985,
+        "relative_change_percent": -1.033524619900396,
+        "welch_df": 7.8180406533589375,
+        "p_value": 0.4109000255038773,
+        "ci95_fold_minus_base": [
+          -0.18378477209973804,
+          0.08350477209973833
+        ],
+        "p_holm": 1.0,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet18",
+        "shape": "1x3x1024x1024",
+        "metric": "execution",
+        "base_process_means": [
+          14.8099,
+          15.0416,
+          14.999,
+          15.2965,
+          14.9944
+        ],
+        "fold_process_means": [
+          14.9833,
+          15.0712,
+          14.8601,
+          14.7343,
+          14.8205
+        ],
+        "base_mean": 15.02828,
+        "fold_mean": 14.89388,
+        "fold_minus_base": -0.13440000000000119,
+        "relative_change_percent": -0.894313920155874,
+        "welch_df": 7.490775655444622,
+        "p_value": 0.21114813922195744,
+        "ci95_fold_minus_base": [
+          -0.3637826328402267,
+          0.09498263284022435
+        ],
+        "p_holm": 1.0,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x224x224",
+        "metric": "execution",
+        "base_process_means": [
+          3.7374,
+          3.8216,
+          3.7252,
+          3.7013,
+          3.8984
+        ],
+        "fold_process_means": [
+          3.8661,
+          3.738,
+          3.6254,
+          3.5369,
+          3.7701
+        ],
+        "base_mean": 3.77678,
+        "fold_mean": 3.7073,
+        "fold_minus_base": -0.06947999999999999,
+        "relative_change_percent": -1.8396623578815814,
+        "welch_df": 6.786480045944068,
+        "p_value": 0.3421125127094015,
+        "ci95_fold_minus_base": [
+          -0.23137245651268015,
+          0.09241245651268018
+        ],
+        "p_holm": 1.0,
+        "reject_holm_0_05": false
+      },
+      {
+        "model": "resnet50",
+        "shape": "16x3x224x224",
+        "metric": "execution",
+        "base_process_means": [
+          30.9381,
+          31.1841,
+          31.114,
+          31.0172,
+          31.1813
+        ],
+        "fold_process_means": [
+          30.5962,
+          30.5545,
+          30.6452,
+          30.4751,
+          30.8562
+        ],
+        "base_mean": 31.08694,
+        "fold_mean": 30.625440000000005,
+        "fold_minus_base": -0.4614999999999938,
+        "relative_change_percent": -1.4845462435350467,
+        "welch_df": 7.414350092805021,
+        "p_value": 0.0005587853197016102,
+        "ci95_fold_minus_base": [
+          -0.6487109247661937,
+          -0.27428907523379387
+        ],
+        "p_holm": 0.003911497237911272,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "64x3x224x224",
+        "metric": "execution",
+        "base_process_means": [
+          112.8884,
+          112.3817,
+          112.2871,
+          112.6084,
+          112.3793
+        ],
+        "fold_process_means": [
+          110.1241,
+          110.1166,
+          110.1378,
+          110.2892,
+          110.0793
+        ],
+        "base_mean": 112.50898000000002,
+        "fold_mean": 110.14940000000001,
+        "fold_minus_base": -2.3595800000000082,
+        "relative_change_percent": -2.0972370383235255,
+        "welch_df": 4.880534513247767,
+        "p_value": 6.2075103652825e-06,
+        "ci95_fold_minus_base": [
+          -2.6562022447948888,
+          -2.0629577552051277
+        ],
+        "p_holm": 5.5867593287542506e-05,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x512x512",
+        "metric": "execution",
+        "base_process_means": [
+          11.8017,
+          11.8974,
+          11.7274,
+          11.8543,
+          11.964
+        ],
+        "fold_process_means": [
+          11.3259,
+          11.2733,
+          11.4594,
+          11.5136,
+          11.3882
+        ],
+        "base_mean": 11.848960000000002,
+        "fold_mean": 11.392080000000002,
+        "fold_minus_base": -0.45687999999999995,
+        "relative_change_percent": -3.855865831262827,
+        "welch_df": 7.956896678522443,
+        "p_value": 5.916482620480705e-05,
+        "ci95_fold_minus_base": [
+          -0.5938448997029135,
+          -0.3199151002970864
+        ],
+        "p_holm": 0.0004733186096384564,
+        "reject_holm_0_05": true
+      },
+      {
+        "model": "resnet50",
+        "shape": "1x3x1024x1024",
+        "metric": "execution",
+        "base_process_means": [
+          40.1346,
+          40.3561,
+          40.0477,
+          40.3182,
+          40.113
+        ],
+        "fold_process_means": [
+          38.8095,
+          39.0627,
+          38.957,
+          38.9667,
+          38.7411
+        ],
+        "base_mean": 40.19392,
+        "fold_mean": 38.907399999999996,
+        "fold_minus_base": -1.286520000000003,
+        "relative_change_percent": -3.200782605926476,
+        "welch_df": 7.986112408887013,
+        "p_value": 3.283510549701079e-07,
+        "ci95_fold_minus_base": [
+          -1.4798774620377628,
+          -1.0931625379622432
+        ],
+        "p_holm": 3.283510549701079e-06,
+        "reject_holm_0_05": true
+      }
+    ]
+  }
+}

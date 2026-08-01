@@ -34,7 +34,7 @@ TVM_HOME ?=
 # -------------------- JAX/XLA GPU memory policy --------------------
 # Must be visible before the first `import jax` in each Python process.
 XLA_PYTHON_CLIENT_PREALLOCATE ?= false
-XLA_PYTHON_CLIENT_MEM_FRACTION ?= 0.40
+XLA_PYTHON_CLIENT_MEM_FRACTION ?= 0.75
 export XLA_PYTHON_CLIENT_PREALLOCATE
 export XLA_PYTHON_CLIENT_MEM_FRACTION
 
@@ -52,11 +52,34 @@ BENCH_QUICK_ARGS ?= --device cuda --model resnet18 --dtype fp32 --batch 1 --heig
         conda_xla_env conda_check_xla conda_smoke_xla conda_smoke_torch conda_smoke_xla_torch conda_clean_xla \
         xla_env check_xla smoke_xla smoke_torch smoke_xla_torch \
         tvm_env smoke_tvm show_versions_xla show_versions_conda_xla lock_xla \
-        check_fold grid tables \
+        artifact_check artifact_submission_check artifact_package set_artifact_doi check_fold grid tables fold_stats cache_audit \
+        bert_audit bert_table transformers_audit transformers_tables \
+        paper_tables paper_image paper_pdf \
+        docker_build docker_verify docker_smoke docker_grid docker_export docker_verify_export \
         clean_inductor_cache clean
 
 # Diretório dos JSONs medidos (entrada do make tables / saída do make grid)
-RESULTS_DIR ?= results/v2
+RESULTS_DIR ?= results/k5
+BERT_RESULTS_DIR ?= results/bert_fold
+TRANSFORMER_RESULTS_DIR ?= results/transformers
+PAPER_TABLE_DIR ?= docs/sblp/generated
+COMPILE_REPEATS ?= 5
+RUN_INDUCTOR ?= 1
+RUN_XLA ?= 1
+RUN_TVM ?= 1
+DOCKER_IMAGE ?= cnnbench:artifact
+DOCKER_ARTIFACTS ?= $(CURDIR)/artifacts
+DOCKER_EXPORT ?= dist/cnnbench-artifact.tar.gz
+PAPER_IMAGE ?= cnnbench-paper:artifact
+ARTIFACT_ARCHIVE ?= dist/cnnbench-source-v1.0.0.tar.gz
+
+# Em hosts com SELinux em Enforcing (Fedora/RHEL/CentOS) o rotulo padrao do
+# contêiner bloqueia /dev/nvidia*, e a GPU aparece como
+# "Failed to initialize NVML: Insufficient Permissions" mesmo com --gpus all.
+# Detectado automaticamente; sobrescreva com DOCKER_SECURITY_OPTS= para desligar.
+DOCKER_SECURITY_OPTS ?= $(shell if command -v getenforce >/dev/null 2>&1 && \
+	[ "$$(getenforce 2>/dev/null)" = "Enforcing" ]; then \
+	echo --security-opt label=disable; fi)
 
 help:
 	@echo "CNN Compilers Benchmark"
@@ -69,9 +92,28 @@ help:
 	@echo "  make clean_inductor_cache   # antes de cada medicao do PyTorch!"
 	@echo ""
 	@echo "Reproducao do artigo (dado -> tabela, sem transcricao manual):"
+	@echo "  make artifact_check                           # preflight portátil"
+	@echo "  make artifact_submission_check                # DOI + PDF + K=5 + tabela"
+	@echo "  make set_artifact_doi DOI=10.5281/zenodo.N   # insere o DOI reservado"
+	@echo "  make paper_pdf                               # regenera tabelas + PDF em contêiner"
+	@echo "  make artifact_package                        # pacote Zenodo + SHA-256 + validação limpa"
 	@echo "  make check_fold                              # valida o fold BN->Conv (CPU)"
-	@echo "  make grid TVM_HOME=/caminho/para/tvm         # re-mede a grade completa -> $(RESULTS_DIR)"
+	@echo "  make grid TVM_HOME=/caminho/para/tvm         # K=$(COMPILE_REPEATS) compilações frias -> $(RESULTS_DIR)"
 	@echo "  make tables                                  # gera tabelas LaTeX/MD de $(RESULTS_DIR)"
+	@echo "  make fold_stats                              # Welch + Holm do fold ResNet"
+	@echo "  make bert_audit                              # auditoria do fold no BERT (K=$(COMPILE_REPEATS))"
+	@echo "  make bert_table                              # tabela do BERT a partir de $(BERT_RESULTS_DIR)"
+	@echo "  make transformers_audit                      # BERT/GPT-2 nos tres backends (K=$(COMPILE_REPEATS))"
+	@echo "  make transformers_tables                     # tabelas BERT/GPT-2 dos JSONs"
+	@echo "  make cache_audit                            # audita caches + dumps K=5"
+	@echo ""
+	@echo "Contêiner reproduzível:"
+	@echo "  make docker_build                            # cria $(DOCKER_IMAGE)"
+	@echo "  make docker_verify                           # valida imagem + GPU"
+	@echo "  make docker_smoke                            # smoke nos três backends"
+	@echo "  make docker_grid                             # grade completa no contêiner"
+	@echo "  make docker_export                           # exporta $(DOCKER_EXPORT) + checksum"
+	@echo "  make docker_verify_export                    # confere o checksum do arquivo baixado"
 	@echo ""
 	@echo "Conda workflow alternativo:"
 	@echo "  make conda_xla_env CONDA_ENV_XLA=teste_xla"
@@ -152,19 +194,138 @@ smoke_tvm: tvm_env
 	@echo "[OK] Gerado: out_smoke_tvm.json"
 
 # -------------------- Reproducao do artigo --------------------
+# Sem dependências Python externas: valida pacote, paper e sintaxe dos fontes.
+artifact_check:
+	python3 scripts/validate_artifact.py
+
+# Checklist estrito para executar sobre uma extração limpa da versão que será
+# depositada no repositório persistente.
+artifact_submission_check:
+	python3 scripts/validate_artifact.py --submission
+
 # Valida o fold BN->Conv (sem BN residual + equivalencia numerica). Roda em CPU.
 check_fold: xla_env
 	. $(VENV_XLA)/bin/activate && python scripts/check_fold.py
 
-# Grade completa do artigo (warmup 10, iters 50): Inductor/TVM r18+r50 x 5 shapes,
-# XLA r18 x 5 shapes. Grava <backend>_<modelo>_<shape>.json em RESULTS_DIR.
+# Grade completa do artigo (warmup 10, iters 50): três backends,
+# ResNet-18/50 x 5 shapes. Grava <backend>_<modelo>_<shape>.json em RESULTS_DIR.
 grid: xla_env tvm_env
 	@test -n "$(TVM_HOME)" || { echo "ERRO: defina TVM_HOME, ex.: make grid TVM_HOME=$$HOME/tvm"; exit 1; }
-	VENV_XLA=$(VENV_XLA) VENV_TVM=$(VENV_TVM) TVM_HOME=$(TVM_HOME) scripts/run_full_grid.sh $(RESULTS_DIR)
+	VENV_XLA=$(VENV_XLA) VENV_TVM=$(VENV_TVM) TVM_HOME=$(TVM_HOME) \
+		COMPILE_REPEATS=$(COMPILE_REPEATS) RUN_INDUCTOR=$(RUN_INDUCTOR) \
+		RUN_XLA=$(RUN_XLA) RUN_TVM=$(RUN_TVM) \
+		scripts/run_full_grid.sh $(RESULTS_DIR)
 
-# Tabelas do artigo geradas dos JSONs (LaTeX + summary.md com n_eq e kernels)
+# Auditoria de aplicabilidade do fold no BERT (K=5 processos frios por forma).
+# Exige o checkpoint bert-base-uncased ja no cache do Hugging Face — ver README §5.2a.
+bert_audit: xla_env
+	. $(VENV_XLA)/bin/activate && python scripts/benchmark_bert_fold.py --batch 1 --seq-len 64 \
+		--repeats $(COMPILE_REPEATS) --warmup 10 --iters 50 \
+		--output $(BERT_RESULTS_DIR)/bert_1x64_k5.json
+	. $(VENV_XLA)/bin/activate && python scripts/benchmark_bert_fold.py --batch 1 --seq-len 128 \
+		--repeats $(COMPILE_REPEATS) --warmup 10 --iters 50 \
+		--output $(BERT_RESULTS_DIR)/bert_1x128_k5.json
+	. $(VENV_XLA)/bin/activate && python scripts/benchmark_bert_fold.py --batch 8 --seq-len 128 \
+		--repeats $(COMPILE_REPEATS) --warmup 10 --iters 50 \
+		--output $(BERT_RESULTS_DIR)/bert_8x128_k5.json
+
+# Comparacao BERT/GPT-2 entre os tres backends (K=5 processos frios por celula).
+transformers_audit: xla_env tvm_env
+	VENV_XLA=$(VENV_XLA) VENV_TVM=$(VENV_TVM) TVM_HOME=$(TVM_HOME) \
+		COMPILE_REPEATS=$(COMPILE_REPEATS) RUN_INDUCTOR=$(RUN_INDUCTOR) \
+		RUN_XLA=$(RUN_XLA) RUN_TVM=$(RUN_TVM) \
+		scripts/run_transformer_grid.sh $(TRANSFORMER_RESULTS_DIR)
+
+# Tabelas de BERT e GPT-2 geradas dos JSONs
+transformers_tables:
+	python3 scripts/make_transformer_tables.py --results-dir $(TRANSFORMER_RESULTS_DIR) --out-dir $(PAPER_TABLE_DIR)
+
+# Tabela do BERT gerada dos JSONs (consumida por \input{} em main.tex)
+bert_table:
+	python3 scripts/make_bert_table.py --results-dir $(BERT_RESULTS_DIR) --out-dir $(PAPER_TABLE_DIR)
+
+# Tabelas do artigo geradas dos JSONs (LaTeX + summary.md com crossover e kernels)
 tables:
-	python3 scripts/make_tables.py --results-dir $(RESULTS_DIR) --out-dir $(RESULTS_DIR)/tables
+	python3 scripts/make_tables.py --results-dir $(RESULTS_DIR) --out-dir $(RESULTS_DIR)/tables --require-complete-k5
+	python3 scripts/make_tables.py --results-dir $(RESULTS_DIR) --out-dir $(PAPER_TABLE_DIR) --require-complete-k5
+
+# Fonte de verdade do camera-ready: todos os seis arquivos consumidos via
+# \input{} são regenerados diretamente dos JSONs K=5.
+paper_tables: tables bert_table transformers_tables
+
+# Ambiente LaTeX separado do contêiner GPU; o digest e os pacotes estão
+# documentados em docker/Dockerfile.paper.
+paper_image:
+	docker build --file docker/Dockerfile.paper --tag $(PAPER_IMAGE) .
+
+paper_pdf: paper_tables paper_image
+	docker run --rm $(DOCKER_SECURITY_OPTS) \
+		--user "$$(id -u):$$(id -g)" --env HOME=/tmp \
+		--volume "$(CURDIR):/workspace" \
+		--workdir /workspace/docs/sblp \
+		$(PAPER_IMAGE) latexmk -g -pdf -interaction=nonstopmode -halt-on-error main.tex
+	@echo "[OK] Gerado: docs/sblp/main.pdf"
+
+# O DOI deve ser reservado no rascunho do Zenodo antes deste comando.
+set_artifact_doi:
+	@test -n "$(DOI)" || { echo "ERRO: use make set_artifact_doi DOI=10.5281/zenodo.NUMERO"; exit 1; }
+	python3 scripts/set_artifact_doi.py "$(DOI)"
+
+# Inclui somente arquivos de release, omite HLOs não otimizados regeneráveis
+# (~7 GiB), valida a área de staging e repete a validação após extrair o tar.
+artifact_package: artifact_submission_check
+	bash scripts/package_artifact.sh "$(ARTIFACT_ARCHIVE)"
+
+fold_stats: xla_env
+	. $(VENV_XLA)/bin/activate && python scripts/analyze_fold_stats.py \
+		--results-dir $(RESULTS_DIR) \
+		--output $(RESULTS_DIR)/tables/fold_welch_holm.json
+
+# Reproduz a evidência de processos frios e verifica todos os dumps registrados.
+cache_audit:
+	python3 scripts/make_cache_audit.py \
+		--results-dir $(RESULTS_DIR) \
+		--output $(RESULTS_DIR)/cache_audit.md
+
+# -------------------- Docker artifact --------------------
+docker_build:
+	docker build --tag $(DOCKER_IMAGE) .
+
+docker_verify:
+	mkdir -p $(DOCKER_ARTIFACTS)
+	docker run --gpus all --rm $(DOCKER_SECURITY_OPTS) \
+		--volume $(DOCKER_ARTIFACTS):/artifacts:Z \
+		$(DOCKER_IMAGE) verify
+
+docker_smoke:
+	mkdir -p $(DOCKER_ARTIFACTS)
+	docker run --gpus all --rm $(DOCKER_SECURITY_OPTS) \
+		--volume $(DOCKER_ARTIFACTS):/artifacts:Z \
+		$(DOCKER_IMAGE) smoke
+
+# Grade completa dentro do contêiner (varias horas).
+docker_grid:
+	mkdir -p $(DOCKER_ARTIFACTS)
+	docker run --gpus all --rm $(DOCKER_SECURITY_OPTS) \
+		--volume $(DOCKER_ARTIFACTS):/artifacts:Z \
+		$(DOCKER_IMAGE) grid
+
+# Exporta a imagem para depósito como arquivo separado no mesmo registro do
+# Zenodo, permitindo ao avaliador pular o build (45--120 min) com `docker load`.
+# Requer espaço livre da ordem do tamanho comprimido da imagem (~10 GiB).
+docker_export:
+	mkdir -p $(dir $(DOCKER_EXPORT))
+	docker image inspect $(DOCKER_IMAGE) >/dev/null
+	docker save $(DOCKER_IMAGE) | gzip -1 > $(DOCKER_EXPORT)
+	cd $(dir $(DOCKER_EXPORT)) && sha256sum $(notdir $(DOCKER_EXPORT)) > $(notdir $(DOCKER_EXPORT)).sha256
+	@echo "[OK] Imagem exportada: $(DOCKER_EXPORT)"
+	@echo "[OK] Checksum: $(DOCKER_EXPORT).sha256"
+	@ls -lh $(DOCKER_EXPORT)
+
+# Confere que um arquivo de imagem baixado corresponde ao checksum publicado.
+docker_verify_export:
+	cd $(dir $(DOCKER_EXPORT)) && sha256sum --check $(notdir $(DOCKER_EXPORT)).sha256
+	@echo "[OK] Arquivo da imagem íntegro"
 
 # -------------------- Diagnostics/locks --------------------
 show_versions_xla: xla_env
@@ -181,10 +342,10 @@ lock_xla: xla_env
 # Remove os caches persistentes do TorchInductor/Triton. Rode antes de cada
 # medicao de compile_ms/kernels do PyTorch para garantir codegen "frio".
 clean_inductor_cache:
-	rm -rf /tmp/torchinductor_$$USER
-	rm -rf $${XDG_CACHE_HOME:-$$HOME/.cache}/torch/inductor
-	rm -rf $$HOME/.triton/cache
-	@echo "[OK] Caches do TorchInductor/Triton removidos"
+	@cache_path="/tmp/torchinductor_$$USER"; \
+	case "$$cache_path" in /tmp/torchinductor_?*) rm -rf -- "$$cache_path" ;; \
+	*) echo "ERRO: caminho de cache inseguro: $$cache_path"; exit 1 ;; esac
+	@echo "[OK] Cache temporário do TorchInductor removido; K>1 usa caches privados"
 
 clean:
 	rm -rf $(VENV_XLA) $(VENV_TVM) out_*.json env_reports/requirements_xla.lock.txt

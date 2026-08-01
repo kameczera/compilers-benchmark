@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "xla",
+    "model": "gpt2",
+    "input": {
+      "batch": 1,
+      "seq_len": 16
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 3453.458004935983,
+    "compile_ms_std": 23.597335072623377,
+    "compile_ms_ci95": 29.295264196237365,
+    "compile_samples_ms": [
+      3488.7142,
+      3448.4949,
+      3461.7571,
+      3442.7104,
+      3425.6135
+    ],
+    "ttfb_ms": 3456.2172435999855,
+    "exec_ms": 2.7592364,
+    "exec_ms_std": 0.17942779642955622,
+    "exec_run_means_ms": [
+      2.777,
+      2.6462,
+      2.754,
+      2.7887,
+      2.8303
+    ],
+    "exec_run_means_ms_std": 0.06897029309222551,
+    "exec_ms_ci95": 0.08562420085193317,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "jax": "0.6.2"
+    },
+    "model_info": {
+      "model": "gpt2",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 50257,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-10iixujq/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-10iixujq/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-10iixujq/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "fusion_total": 157,
+        "custom_total": 12,
+        "kernels_totais": 169,
+        "code_size_bytes": 640716,
+        "code_lines": 3941
+      },
+      "capture_method": "jit_lower_compile",
+      "replicate_paths": [
+        "ir_dumps/transformers/xla/1785586488829_gpt2_1x16/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586501950_gpt2_1x16/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586514996_gpt2_1x16/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586528020_gpt2_1x16/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586541050_gpt2_1x16/fused_jit_optimized.hlo"
+      ],
+      "replicate_summaries_identical": false
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "title": "CNN Compilers Benchmark: Artifact for Gaps in Operator Fusion for Deep Learning Systems",
+  "description": "Reproducibility artifact for the SBLP 2026 paper. It contains the benchmark implementation for TorchInductor, XLA, and TVM; pinned environments and a GPU-enabled container recipe; complete K=5 cold-process result grids with 30 ResNet and 21 Transformer cells; raw process-level timing samples; compiler-IR integrity evidence; statistical analyses; and scripts that regenerate the paper tables.",
+  "creators": [
+    {
+      "name": "Kamei, Leonardo Yukio Macedo",
+      "affiliation": "PUC Minas",
+      "type": "ProjectMember"
+    },
+    {
+      "name": "Costa, Pedro Henrique Ramos",
+      "affiliation": "PUC Minas",
+      "type": "ProjectMember"
+    }
+  ],
+  "version": "1.0.0",
+  "access_right": "open",
+  "keywords": [
+    "operator fusion",
+    "machine learning compilers",
+    "compilation time",
+    "kernel fusion",
+    "performance benchmarking",
+    "TorchInductor",
+    "XLA",
+    "TVM",
+    "artifact evaluation"
+  ],
+  "license": "mit",
+  "upload_type": "software",
+  "language": "eng"
+}

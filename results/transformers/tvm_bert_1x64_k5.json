@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "tvm",
+    "model": "bert",
+    "input": {
+      "batch": 1,
+      "seq_len": 64
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 8119.893713200055,
+    "compile_ms_std": 527.1742037331123,
+    "compile_ms_ci95": 654.4682917911234,
+    "compile_samples_ms": [
+      9060.06,
+      7926.6419,
+      7862.4793,
+      7921.6425,
+      7828.6448
+    ],
+    "ttfb_ms": 8132.346592200248,
+    "exec_ms": 10.8344488,
+    "exec_ms_std": 0.3725436700885579,
+    "exec_run_means_ms": [
+      10.9901,
+      10.9308,
+      10.7238,
+      10.7808,
+      10.7468
+    ],
+    "exec_run_means_ms_std": 0.11865287119715673,
+    "exec_ms_ci95": 0.1473033797530594,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "tvm": "0.22.dev0",
+      "torch": "2.5.1+cu124"
+    },
+    "model_info": {
+      "model": "bert",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 30522,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-yvje1tef/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-yvje1tef/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-yvje1tef/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "tvm_call_tir_total": 367,
+        "tvm_cls_total": 17,
+        "code_size_bytes": 94209,
+        "code_lines": 871
+      },
+      "capture_method": "tvmscript",
+      "replicate_paths": [
+        "ir_dumps/transformers/tvm/1785586818194_bert_1x64/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785586837630_bert_1x64/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785586856491_bert_1x64/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785586875444_bert_1x64/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785586894260_bert_1x64/fused_tvmscript.py"
+      ],
+      "replicate_summaries_identical": true
+    }
+  }
+}

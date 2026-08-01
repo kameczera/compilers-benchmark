@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+import copy
 import os, io, time, math, ast, re
 from pathlib import Path
 from typing import Dict, Any, Tuple
@@ -133,16 +134,21 @@ def _count_triton_from_text(txt: str) -> Dict[str, Any]:
         c.visit(tree)
     total_triton = sum(c.triton_runs.values()) if c.triton_runs else 0
     total_extern = sum(c.extern_calls.values()) if c.extern_calls else 0
+    direct_aten_calls = {}
+    for opname in re.findall(r"torch\.ops\.aten\.([A-Za-z0-9_.]+)\(", txt):
+        direct_aten_calls[opname] = direct_aten_calls.get(opname, 0) + 1
     return {
         "summary": {
             "triton_launches_total": total_triton,
             "triton_kernels_unicos": len(c.triton_runs),
             "extern_kernels_total": total_extern,
             "extern_funcs_unicas": len(c.extern_calls),
+            "direct_aten_calls_total": sum(direct_aten_calls.values()),
         },
         "details": {
             "triton_runs": c.triton_runs,
             "extern_calls": c.extern_calls,
+            "direct_aten_calls": direct_aten_calls,
             "fused_ops": c.fused_ops,
         }
     }
@@ -195,7 +201,8 @@ def fold_bn_inplace(model: nn.Module) -> nn.Module:
 
 
 def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag: str,
-                           warmup: int = 10, iters: int = 50) -> Tuple[float, float, Dict[str, Any], str, Dict[str, Any]]:
+                           warmup: int = 10, iters: int = 50,
+                           profile_kernel_names: bool = False) -> Tuple[float, float, Dict[str, Any], str, Dict[str, Any]]:
     """
     Compila com Inductor, captura 'output_code' (Triton + extern) e mede tempos.
     Retorna: (compile_ms_proxy, ttfb_ms, exec_stats, code_path, kernel_counts)
@@ -253,13 +260,15 @@ def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag
     out_dir.mkdir(parents=True, exist_ok=True)
     code_path = out_dir / f"{tag}_inductor_output_code.py"
     _save_text(code_path, code_txt)
-    triton_runs, extern_calls, fused_ops = {}, {}, {}
+    triton_runs, extern_calls, direct_aten_calls, fused_ops = {}, {}, {}, {}
     for _, src in srcs:
         c = _count_triton_from_text(src)
         for k, v in c["details"]["triton_runs"].items():
             triton_runs[k] = triton_runs.get(k, 0) + v
         for k, v in c["details"]["extern_calls"].items():
             extern_calls[k] = extern_calls.get(k, 0) + v
+        for k, v in c["details"]["direct_aten_calls"].items():
+            direct_aten_calls[k] = direct_aten_calls.get(k, 0) + v
         fused_ops.update(c["details"]["fused_ops"])
     kc = {
         "summary": {
@@ -267,12 +276,14 @@ def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag
             "triton_kernels_unicos": len(triton_runs),
             "extern_kernels_total": sum(extern_calls.values()),
             "extern_funcs_unicas": len(extern_calls),
+            "direct_aten_calls_total": sum(direct_aten_calls.values()),
             "code_size_bytes": len(code_txt.encode("utf-8")),
             "code_lines": code_txt.count("\n") + (1 if code_txt else 0),
         },
         "details": {
             "triton_runs": triton_runs,
             "extern_calls": extern_calls,
+            "direct_aten_calls": direct_aten_calls,
             "fused_ops": fused_ops,
         },
         "capture_method": capture_method,
@@ -290,6 +301,47 @@ def _compile_and_dump_code(model: nn.Module, x: torch.Tensor, out_dir: Path, tag
         for _ in range(max(1, warmup)):
             _ = compiled(x)
         sync_cuda()
+
+    # Optional single-forward dynamic census. This complements static code
+    # counting for models with graph breaks or reused compiled subgraphs, where
+    # a generated wrapper may execute multiple times in one model invocation.
+    if profile_kernel_names and torch.cuda.is_available():
+        try:
+            from collections import Counter
+            from torch.profiler import ProfilerActivity, profile
+
+            with profile(
+                activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+                record_shapes=False,
+                profile_memory=False,
+                with_stack=False,
+            ) as prof:
+                with torch.inference_mode():
+                    _ = compiled(x)
+                    sync_cuda()
+            cuda_events = [
+                event.name
+                for event in prof.events()
+                if str(event.device_type).lower().endswith("cuda")
+            ]
+            cpu_aten_events = [
+                event.name
+                for event in prof.events()
+                if (
+                    str(event.device_type).lower().endswith("cpu")
+                    and event.name.startswith("aten::")
+                )
+            ]
+            kc["dynamic_cuda_kernels"] = {
+                "total": len(cuda_events),
+                "by_name": dict(Counter(cuda_events).most_common()),
+            }
+            kc["dynamic_cpu_aten_ops"] = {
+                "total": len(cpu_aten_events),
+                "by_name": dict(Counter(cpu_aten_events).most_common()),
+            }
+        except Exception as exc:
+            kc["dynamic_cuda_kernels_error"] = f"{type(exc).__name__}: {exc}"
 
     # janela medida: uma amostra por iteração, com sync por iteração — mesma
     # semântica do block_until_ready do caminho XLA e do dev.sync() do TVM,
@@ -315,7 +367,10 @@ def run_pytorch(model_name: str = "resnet18",
                 warmup: int = 10,
                 iters: int = 50,
                 power_compile_w: float = 25.0,
-                power_exec_w: float = 25.0) -> Dict[str, Any]:
+                power_exec_w: float = 25.0,
+                variant: str = "both") -> Dict[str, Any]:
+    if variant not in {"both", "base", "fold"}:
+        raise ValueError(f"unknown TorchInductor variant: {variant}")
 
     N, C, H, W = shape_nchw
     torch.backends.cudnn.benchmark = True
@@ -327,7 +382,10 @@ def run_pytorch(model_name: str = "resnet18",
         pass
     dev = torch.device(device if torch.cuda.is_available() or device == "cpu" else "cpu")
 
-    # modelos
+    # A mesma inicialização alimenta as variantes base e fold, inclusive quando
+    # elas são coletadas em filhos independentes pelo protocolo K=5.
+    model_seed = 0
+    torch.manual_seed(model_seed)
     base = get_resnet(model_name).eval()
     base = to_dtype(base, dtype).to(dev)
     if dev.type == "cuda":
@@ -354,7 +412,14 @@ def run_pytorch(model_name: str = "resnet18",
     eager_ttfb_ms = eager_exec_ms
 
     out = {
-        "meta": {"device": str(dev), "dtype": dtype, "warmup": warmup, "iters": iters},
+        "meta": {
+            "device": str(dev),
+            "dtype": dtype,
+            "warmup": warmup,
+            "iters": iters,
+            "model_seed": model_seed,
+            "base_fold_same_initial_state": True,
+        },
         "shapes": { pretty_shape(shape_nchw): {} },
         "ir_dump": {}
     }
@@ -364,38 +429,60 @@ def run_pytorch(model_name: str = "resnet18",
     out_dir = Path("ir_dumps") / "inductor" / f"{stamp}_{model_name}_{pretty_shape(shape_nchw)}"
 
     # ----- Inductor padrão -----
-    compile_ms, ttfb_ms, exec_stats, code_path, kcount = _compile_and_dump_code(base, x, out_dir, "fused", warmup=warmup, iters=iters)
-    exec_ms = exec_stats["mean"]
-    energy = estimate_energy_j(ttfb_ms, exec_ms, iters, power_compile_w, power_exec_w)
-    out["shapes"][pretty_shape(shape_nchw)]["fused_inductor"] = {
-        "ttfb_ms": float(ttfb_ms),
-        "compile_ms": float(compile_ms),
-        "exec_ms": float(exec_ms),
-        "exec_ms_std": float(exec_stats["std"]),
-        "exec_ms_ci95": float(exec_stats["ci95_halfwidth"]),
-        "exec_samples_ms": exec_stats["samples"],
-        "energy_j": float(energy),
-    }
-    out["ir_dump"]["fused_inductor"] = {"path": code_path, "kernel_count": kcount}
+    exec_ms = None
+    if variant in {"both", "base"}:
+        compile_ms, ttfb_ms, exec_stats, code_path, kcount = _compile_and_dump_code(
+            base, x, out_dir, "fused", warmup=warmup, iters=iters
+        )
+        exec_ms = exec_stats["mean"]
+        energy = estimate_energy_j(ttfb_ms, exec_ms, iters, power_compile_w, power_exec_w)
+        out["shapes"][pretty_shape(shape_nchw)]["fused_inductor"] = {
+            "ttfb_ms": float(ttfb_ms),
+            "compile_ms": float(compile_ms),
+            "exec_ms": float(exec_ms),
+            "exec_ms_std": float(exec_stats["std"]),
+            "exec_ms_ci95": float(exec_stats["ci95_halfwidth"]),
+            "exec_samples_ms": exec_stats["samples"],
+            "energy_j": float(energy),
+        }
+        out["ir_dump"]["fused_inductor"] = {"path": code_path, "kernel_count": kcount}
 
     # ----- Inductor com BN fold -----
-    folded = fold_bn_inplace(get_resnet(model_name)).eval().to(dev)
-    folded = to_dtype(folded, dtype)
-    if dev.type == "cuda":
-        folded = folded.to(memory_format=torch.channels_last)
-    compile_ms2, ttfb_ms2, exec_stats2, code_path2, kcount2 = _compile_and_dump_code(folded, x, out_dir, "fused_fold", warmup=warmup, iters=iters)
-    exec_ms2 = exec_stats2["mean"]
-    energy2 = estimate_energy_j(ttfb_ms2, exec_ms2, iters, power_compile_w, power_exec_w)
-    out["shapes"][pretty_shape(shape_nchw)]["fused_fold_inductor"] = {
-        "ttfb_ms": float(ttfb_ms2),
-        "compile_ms": float(compile_ms2),
-        "exec_ms": float(exec_ms2),
-        "exec_ms_std": float(exec_stats2["std"]),
-        "exec_ms_ci95": float(exec_stats2["ci95_halfwidth"]),
-        "exec_samples_ms": exec_stats2["samples"],
-        "energy_j": float(energy2),
-    }
-    out["ir_dump"]["fused_fold_inductor"] = {"path": code_path2, "kernel_count": kcount2}
+    if variant in {"both", "fold"}:
+        sync_cuda()
+        fold_t0 = now_ms()
+        folded = copy.deepcopy(base)
+        folded = fold_bn_inplace(folded).eval()
+        sync_cuda()
+        fold_preprocess_ms = now_ms() - fold_t0
+        if variant == "fold":
+            del base
+            if dev.type == "cuda":
+                torch.cuda.empty_cache()
+        if dev.type == "cuda":
+            folded = folded.to(memory_format=torch.channels_last)
+        compile_ms2, ttfb_ms2, exec_stats2, code_path2, kcount2 = _compile_and_dump_code(
+            folded, x, out_dir, "fused_fold", warmup=warmup, iters=iters
+        )
+        exec_ms2 = exec_stats2["mean"]
+        energy2 = estimate_energy_j(ttfb_ms2, exec_ms2, iters, power_compile_w, power_exec_w)
+        out["shapes"][pretty_shape(shape_nchw)]["fused_fold_inductor"] = {
+            "ttfb_ms": float(ttfb_ms2),
+            "compile_ms": float(compile_ms2),
+            "exec_ms": float(exec_ms2),
+            "exec_ms_std": float(exec_stats2["std"]),
+            "exec_ms_ci95": float(exec_stats2["ci95_halfwidth"]),
+            "exec_samples_ms": exec_stats2["samples"],
+            "fold_preprocess_ms": float(fold_preprocess_ms),
+            "compile_plus_preprocess_ms": float(
+                compile_ms2 + fold_preprocess_ms
+            ),
+            "energy_j": float(energy2),
+        }
+        out["ir_dump"]["fused_fold_inductor"] = {
+            "path": code_path2,
+            "kernel_count": kcount2,
+        }
 
     # eager no mesmo bloco
     out["shapes"][pretty_shape(shape_nchw)]["eager"] = {
@@ -407,7 +494,9 @@ def run_pytorch(model_name: str = "resnet18",
     }
 
     # speedups
-    out["shapes"][pretty_shape(shape_nchw)]["speedup_exec_x"] = \
-        float(eager_exec_ms / exec_ms) if exec_ms > 0 else None
+    if exec_ms is not None:
+        out["shapes"][pretty_shape(shape_nchw)]["speedup_exec_x"] = (
+            float(eager_exec_ms / exec_ms) if exec_ms > 0 else None
+        )
 
     return out

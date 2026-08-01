@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "xla",
+    "model": "bert",
+    "input": {
+      "batch": 8,
+      "seq_len": 128
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 5729.989677127951,
+    "compile_ms_std": 34.023565015835985,
+    "compile_ms_ci95": 42.23906313866505,
+    "compile_samples_ms": [
+      5757.488,
+      5678.6884,
+      5750.4223,
+      5751.9141,
+      5711.4356
+    ],
+    "ttfb_ms": 5759.8692513999595,
+    "exec_ms": 29.8795756,
+    "exec_ms_std": 0.2507606763266666,
+    "exec_run_means_ms": [
+      29.8836,
+      29.8428,
+      29.9903,
+      29.8618,
+      29.8193
+    ],
+    "exec_run_means_ms_std": 0.06630160033489081,
+    "exec_ms_ci95": 0.08231111235511362,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "jax": "0.6.2"
+    },
+    "model_info": {
+      "model": "bert",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 30522,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-m5fbp_v2/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-m5fbp_v2/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-m5fbp_v2/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "fusion_total": 208,
+        "custom_total": 24,
+        "kernels_totais": 232,
+        "code_size_bytes": 960532,
+        "code_lines": 5423
+      },
+      "capture_method": "jit_lower_compile",
+      "replicate_paths": [
+        "ir_dumps/transformers/xla/1785586408816_bert_8x128/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586425523_bert_8x128/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586442175_bert_8x128/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586458942_bert_8x128/fused_jit_optimized.hlo",
+        "ir_dumps/transformers/xla/1785586475439_bert_8x128/fused_jit_optimized.hlo"
+      ],
+      "replicate_summaries_identical": true
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "tvm",
+    "model": "bert",
+    "input": {
+      "batch": 8,
+      "seq_len": 128
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 8259.453935199872,
+    "compile_ms_std": 69.34453209080728,
+    "compile_ms_ci95": 86.08880544826776,
+    "compile_samples_ms": [
+      8381.1499,
+      8225.6428,
+      8237.7941,
+      8243.9415,
+      8208.7414
+    ],
+    "ttfb_ms": 8405.345207799655,
+    "exec_ms": 134.37064120000002,
+    "exec_ms_std": 0.6019926965415093,
+    "exec_run_means_ms": [
+      133.8025,
+      134.2682,
+      134.5976,
+      134.5547,
+      134.6302
+    ],
+    "exec_run_means_ms_std": 0.34857312144134217,
+    "exec_ms_ci95": 0.43274130968196683,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "tvm": "0.22.dev0",
+      "torch": "2.5.1+cu124"
+    },
+    "model_info": {
+      "model": "bert",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 30522,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-3zvgkf2h/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-3zvgkf2h/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-3zvgkf2h/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "tvm_call_tir_total": 367,
+        "tvm_cls_total": 18,
+        "code_size_bytes": 97947,
+        "code_lines": 892
+      },
+      "capture_method": "tvmscript",
+      "replicate_paths": [
+        "ir_dumps/transformers/tvm/1785587019627_bert_8x128/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785587046350_bert_8x128/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785587073263_bert_8x128/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785587100046_bert_8x128/fused_tvmscript.py",
+        "ir_dumps/transformers/tvm/1785587126825_bert_8x128/fused_tvmscript.py"
+      ],
+      "replicate_summaries_identical": true
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "inductor",
+    "model": "gpt2",
+    "input": {
+      "batch": 1,
+      "seq_len": 128
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 8938.575266039985,
+    "compile_ms_std": 187.10619860151115,
+    "compile_ms_ci95": 232.28578582774492,
+    "compile_samples_ms": [
+      9070.6352,
+      9187.6354,
+      8895.1602,
+      8798.5057,
+      8740.9398
+    ],
+    "ttfb_ms": 8945.861205599977,
+    "exec_ms": 7.2859392,
+    "exec_ms_std": 0.23429738745113166,
+    "exec_run_means_ms": [
+      7.3347,
+      7.2336,
+      7.3111,
+      7.285,
+      7.2653
+    ],
+    "exec_run_means_ms_std": 0.03929755897582594,
+    "exec_ms_ci95": 0.04878654173960731,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "torch": "2.9.0+cu128"
+    },
+    "model_info": {
+      "model": "gpt2",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 50257,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-ccmzi_l1/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-ccmzi_l1/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-ccmzi_l1/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "triton_launches_total": null,
+        "triton_kernels_unicos": null,
+        "extern_kernels_total": null,
+        "code_size_bytes": 594404,
+        "code_lines": 6933
+      },
+      "capture_method": "inductor_cache_files",
+      "replicate_paths": [
+        "ir_dumps/transformers/inductor/1785587645646_gpt2_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785587662959_gpt2_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785587679889_gpt2_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785587696902_gpt2_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785587713880_gpt2_1x128/fused_inductor_output_code.py"
+      ],
+      "replicate_summaries_identical": true
+    }
+  }
+}

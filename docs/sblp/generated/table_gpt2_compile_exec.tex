@@ -1,0 +1,24 @@
+% Gerado por scripts/make_transformer_tables.py — NÃO editar à mão
+\begin{tabular}{llcc}
+\toprule
+\textbf{Framework} & \textbf{Input} & \textbf{Comp.} & \textbf{Exec.} \\
+\midrule
+\multirow{4}{*}{TorchInductor}
+& (1,\,16) & 9389 $\pm$ 510 & 3.20 $\pm$ 0.11 \\
+& (1,\,128) & 8939 $\pm$ 187 & 7.29 $\pm$ 0.04 \\
+& (8,\,128) & 9677 $\pm$ 242 & 39.79 $\pm$ 0.15 \\
+& (8,\,256) & 9621 $\pm$ 148 & 82.78 $\pm$ 0.10 \\
+\midrule
+\multirow{4}{*}{TVM}
+& (1,\,16) & 6720 $\pm$ 250 & 5.55 $\pm$ 0.13 \\
+& (1,\,128) & 6687 $\pm$ 281 & 23.69 $\pm$ 0.37 \\
+& (8,\,128) & 6907 $\pm$ 228 & 149.13 $\pm$ 1.29 \\
+& (8,\,256) & 6540 $\pm$ 14 & 415.13 $\pm$ 0.34 \\
+\midrule
+\multirow{4}{*}{XLA}
+& (1,\,16) & 3453 $\pm$ 24 & 2.76 $\pm$ 0.07 \\
+& (1,\,128) & 4441 $\pm$ 128 & 4.92 $\pm$ 0.04 \\
+& (8,\,128) & 5860 $\pm$ 102 & 29.64 $\pm$ 0.21 \\
+& (8,\,256) & 5722 $\pm$ 58 & 59.67 $\pm$ 0.04 \\
+\bottomrule
+\end{tabular}

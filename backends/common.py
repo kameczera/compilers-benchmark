@@ -20,7 +20,17 @@ def sync_cuda():
 def estimate_energy_j(ttfb_ms: float, exec_ms: float, runs: int, p_compile_w: float, p_exec_w: float) -> float:
     return (ttfb_ms/1000.0)*p_compile_w + (exec_ms/1000.0)*p_exec_w*runs
 
-def stats_ms(samples: List[float]) -> Dict[str, Any]:
+_T_CRITICAL_95 = {
+    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
+    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+    11: 2.201, 12: 2.179, 13: 2.160, 14: 2.145, 15: 2.131,
+    16: 2.120, 17: 2.110, 18: 2.101, 19: 2.093, 20: 2.086,
+    21: 2.080, 22: 2.074, 23: 2.069, 24: 2.064, 25: 2.060,
+    26: 2.056, 27: 2.052, 28: 2.048, 29: 2.045, 30: 2.042,
+}
+
+
+def stats_ms(samples: List[float], ci_method: str = "normal") -> Dict[str, Any]:
     """Estatísticas das amostras por iteração (ms): média, desvio-padrão
     amostral (n-1) e meia-largura do IC 95% — os valores "média ± sd" das
     tabelas do artigo saem daqui. As amostras brutas ficam no JSON para
@@ -30,7 +40,13 @@ def stats_ms(samples: List[float]) -> Dict[str, Any]:
     if n > 1:
         var = sum((s - mean) ** 2 for s in samples) / (n - 1)
         std = math.sqrt(var)
-        ci95 = 1.96 * std / math.sqrt(n)
+        if ci_method == "student_t":
+            critical = _T_CRITICAL_95.get(n - 1, 1.96)
+        elif ci_method == "normal":
+            critical = 1.96
+        else:
+            raise ValueError(f"unknown ci_method: {ci_method}")
+        ci95 = critical * std / math.sqrt(n)
     else:
         std = 0.0
         ci95 = 0.0
@@ -38,6 +54,7 @@ def stats_ms(samples: List[float]) -> Dict[str, Any]:
         "mean": float(mean),
         "std": float(std),
         "ci95_halfwidth": float(ci95),
+        "ci95_method": "student_t" if ci_method == "student_t" else "normal_1.96",
         "n": n,
         "samples": [round(float(s), 4) for s in samples],
     }
@@ -146,7 +163,22 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
                 per_backend[f"{name}_fold"] = {
                     "ttfb_ms": float(fused_fold.get("ttfb_ms", 0.0)),
                     "exec_ms": float(fused_fold.get("exec_ms", 0.0)),
-                    "compile_ms": float(fused_fold.get("compile_ms", fused_fold.get("ttfb_ms", 0.0))),
+                    "compile_ms": float(
+                        fused_fold.get(
+                            "compile_plus_preprocess_ms",
+                            fused_fold.get(
+                                "compile_ms", fused_fold.get("ttfb_ms", 0.0)
+                            ),
+                        )
+                    ),
+                    "compiler_only_ms": float(
+                        fused_fold.get(
+                            "compile_ms", fused_fold.get("ttfb_ms", 0.0)
+                        )
+                    ),
+                    "fold_preprocess_ms": float(
+                        fused_fold.get("fold_preprocess_ms", 0.0)
+                    ),
                 }
 
     if not per_backend:
@@ -219,20 +251,23 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
         x_max = max(x_max, float(runs_exec if runs_exec > 0 else 1.0))
 
         xs = np.linspace(0.0, x_max, 401)
-        plt.figure(figsize=(8, 5))
+        plt.figure(figsize=(9, 5.4))
         for (name, a, b) in lines:
             ys = b + a * xs
-            plt.plot(xs, ys, label=name)
+            plt.plot(xs, ys, label=name, linewidth=2)
 
         for seg in segments[1:]:
             s = seg["n_start_real"]
             if s <= x_max:
                 plt.axvline(s, linestyle="--", linewidth=1)
 
-        plt.xlabel("n (execuções)")
-        plt.ylabel("Tempo total T_b(n) [ms]")
-        plt.title(f"Envelope de Tempo Total — shape {pretty_shape(target_shape)}")
-        plt.legend(loc="best")
+        plt.xlabel("n (executions)", fontsize=14)
+        plt.ylabel("Total time T_b(n) [ms]", fontsize=14)
+        plt.title(f"Total-time envelope — shape {pretty_shape(target_shape)}",
+                  fontsize=15)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.legend(loc="best", fontsize=12)
 
         out_dir = Path("plots"); out_dir.mkdir(parents=True, exist_ok=True)
         stamp = int(time.time() * 1000)

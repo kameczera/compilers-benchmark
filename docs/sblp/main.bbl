@@ -1,0 +1,198 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{12}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{} and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showURL}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showURL #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Ansel et~al\mbox{.}(2024)]%
+        {pytorch2022}
+\bibfield{author}{\bibinfo{person}{Jason Ansel}, \bibinfo{person}{Edward Yang},
+  \bibinfo{person}{Horace He}, \bibinfo{person}{Natalia Gimelshein},
+  \bibinfo{person}{Animesh Jain}, \bibinfo{person}{Michael Voznesensky},
+  \bibinfo{person}{Bin Bao}, \bibinfo{person}{Peter Bell},
+  \bibinfo{person}{David Berard}, \bibinfo{person}{Evgeni Burovski},
+  {et~al\mbox{.}}} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{PyTorch 2: Faster Machine Learning Through Dynamic
+  Python Bytecode Transformation and Graph Compilation}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 29th ACM International
+  Conference on Architectural Support for Programming Languages and Operating
+  Systems, Volume 2}}. \bibinfo{publisher}{ACM}, \bibinfo{pages}{929--947}.
+\newblock
+\href{https://doi.org/10.1145/3620665.3640366}{doi:\nolinkurl{10.1145/3620665.3640366}}
+
+
+\bibitem[Cai et~al\mbox{.}(2022)]%
+        {cai2022optimus}
+\bibfield{author}{\bibinfo{person}{Xuyi Cai}, \bibinfo{person}{Ying Wang},
+  {and} \bibinfo{person}{Lei Zhang}.} \bibinfo{year}{2022}\natexlab{}.
+\newblock \showarticletitle{Optimus: An Operator Fusion Framework for Deep
+  Neural Networks}.
+\newblock \bibinfo{journal}{\emph{ACM Transactions on Embedded Computing
+  Systems}} \bibinfo{volume}{22}, \bibinfo{number}{1} (\bibinfo{year}{2022}),
+  \bibinfo{numpages}{26}~pages.
+\newblock
+\href{https://doi.org/10.1145/3520142}{doi:\nolinkurl{10.1145/3520142}}
+
+
+\bibitem[Canesche et~al\mbox{.}(2025)]%
+        {canesche2025xnnc}
+\bibfield{author}{\bibinfo{person}{Michael Canesche},
+  \bibinfo{person}{Vanderson Martins~do Rosario}, \bibinfo{person}{Edson
+  Borin}, {and} \bibinfo{person}{Fernando Magno~Quint{\~a}o Pereira}.}
+  \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{Fusion of Operators of Computational Graphs via
+  Greedy Clustering: The XNNC Experience}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 34th ACM SIGPLAN International
+  Conference on Compiler Construction}}. \bibinfo{publisher}{ACM},
+  \bibinfo{pages}{117--127}.
+\newblock
+\href{https://doi.org/10.1145/3708493.3712689}{doi:\nolinkurl{10.1145/3708493.3712689}}
+
+
+\bibitem[Chen et~al\mbox{.}(2018)]%
+        {chen2018tvm}
+\bibfield{author}{\bibinfo{person}{Tianqi Chen}, \bibinfo{person}{Thierry
+  Moreau}, \bibinfo{person}{Ziheng Jiang}, \bibinfo{person}{Lianmin Zheng},
+  \bibinfo{person}{Eddie Yan}, \bibinfo{person}{Haichen Shen},
+  \bibinfo{person}{Meghan Cowan}, \bibinfo{person}{Leyuan Wang},
+  \bibinfo{person}{Yuwei Hu}, \bibinfo{person}{Luis Ceze},
+  \bibinfo{person}{Carlos Guestrin}, {and} \bibinfo{person}{Arvind
+  Krishnamurthy}.} \bibinfo{year}{2018}\natexlab{}.
+\newblock \showarticletitle{TVM: An Automated End-to-End Optimizing Compiler
+  for Deep Learning}. In \bibinfo{booktitle}{\emph{13th USENIX Symposium on
+  Operating Systems Design and Implementation (OSDI 18)}}.
+  \bibinfo{pages}{578--594}.
+\newblock
+
+
+\bibitem[Darte(1999)]%
+        {darte1999}
+\bibfield{author}{\bibinfo{person}{Alain Darte}.}
+  \bibinfo{year}{1999}\natexlab{}.
+\newblock \showarticletitle{On the complexity of loop fusion}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 1999 International Conference on
+  Parallel Architectures and Compilation Techniques}}.
+  \bibinfo{publisher}{IEEE}, \bibinfo{pages}{149--157}.
+\newblock
+\shownote{Cat. No. PR00425}.
+\newblock
+
+
+\bibitem[Fraser(1979)]%
+        {fraser1979peephole}
+\bibfield{author}{\bibinfo{person}{Christopher~W. Fraser}.}
+  \bibinfo{year}{1979}\natexlab{}.
+\newblock \showarticletitle{A Compact, Machine-Independent Peephole Optimizer}.
+  In \bibinfo{booktitle}{\emph{Proceedings of the 6th ACM SIGACT-SIGPLAN
+  Symposium on Principles of Programming Languages (POPL)}}.
+  \bibinfo{publisher}{ACM}, \bibinfo{pages}{1--6}.
+\newblock
+\href{https://doi.org/10.1145/567752.567753}{doi:\nolinkurl{10.1145/567752.567753}}
+
+
+\bibitem[Leary and Wang(2017)]%
+        {xla2017leary}
+\bibfield{author}{\bibinfo{person}{Chris Leary} {and} \bibinfo{person}{Todd
+  Wang}.} \bibinfo{year}{2017}\natexlab{}.
+\newblock \showarticletitle{XLA: TensorFlow, Compiled}. In
+  \bibinfo{booktitle}{\emph{TensorFlow Dev Summit}}.
+\newblock
+\urldef\tempurl%
+\url{https://www.tensorflow.org/xla}
+\showURL{%
+\tempurl}
+
+
+\bibitem[Niu et~al\mbox{.}(2021)]%
+        {liu2021dnnfusion}
+\bibfield{author}{\bibinfo{person}{Wei Niu}, \bibinfo{person}{Jiexiong Guan},
+  \bibinfo{person}{Yanzhi Wang}, \bibinfo{person}{Gagan Agrawal}, {and}
+  \bibinfo{person}{Bin Ren}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{DNNFusion: Accelerating Deep Neural Networks
+  Execution with Advanced Operator Fusion}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 42nd ACM SIGPLAN International
+  Conference on Programming Language Design and Implementation}}.
+  \bibinfo{publisher}{ACM}, \bibinfo{pages}{883--898}.
+\newblock
+\href{https://doi.org/10.1145/3453483.3454083}{doi:\nolinkurl{10.1145/3453483.3454083}}
+
+
+\bibitem[Pati et~al\mbox{.}(2021)]%
+        {pati2021demystifying}
+\bibfield{author}{\bibinfo{person}{Suchita Pati}, \bibinfo{person}{Shaizeen
+  Aga}, \bibinfo{person}{Nuwan Jayasena}, {and} \bibinfo{person}{Matthew~D.
+  Sinclair}.} \bibinfo{year}{2021}\natexlab{}.
+\newblock \showarticletitle{Demystifying BERT: Implications for Accelerator
+  Design}. In \bibinfo{booktitle}{\emph{IEEE International Symposium on
+  Workload Characterization (IISWC 2021)}}. IEEE, \bibinfo{pages}{109--120}.
+\newblock
+\href{https://doi.org/10.1109/IISWC53511.2021.00019}{doi:\nolinkurl{10.1109/IISWC53511.2021.00019}}
+
+
+\bibitem[Radford et~al\mbox{.}(2019)]%
+        {radford2019language}
+\bibfield{author}{\bibinfo{person}{Alec Radford}, \bibinfo{person}{Jeffrey Wu},
+  \bibinfo{person}{Rewon Child}, \bibinfo{person}{David Luan},
+  \bibinfo{person}{Dario Amodei}, {and} \bibinfo{person}{Ilya Sutskever}.}
+  \bibinfo{year}{2019}\natexlab{}.
+\newblock \showarticletitle{Language Models are Unsupervised Multitask
+  Learners}.
+\newblock \bibinfo{journal}{\emph{OpenAI Technical Report}}
+  (\bibinfo{year}{2019}).
+\newblock
+
+
+\bibitem[Snider and Liang(2023)]%
+        {snider2023xla}
+\bibfield{author}{\bibinfo{person}{Daniel Snider} {and} \bibinfo{person}{Ruofan
+  Liang}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \bibinfo{title}{Operator Fusion in XLA: Analysis and Evaluation}.
+\newblock \bibinfo{howpublished}{\url{https://arxiv.org/abs/2301.13062}}.
+\newblock
+\shownote{arXiv:2301.13062}.
+\newblock
+
+
+\bibitem[Wolf and Lam(1991)]%
+        {wolf1991wolf}
+\bibfield{author}{\bibinfo{person}{Michael~E. Wolf} {and}
+  \bibinfo{person}{Monica~S. Lam}.} \bibinfo{year}{1991}\natexlab{}.
+\newblock \showarticletitle{A Data Locality Optimizing Algorithm}. In
+  \bibinfo{booktitle}{\emph{ACM SIGPLAN Conference on Programming Language
+  Design and Implementation (PLDI)}}. \bibinfo{pages}{30--44}.
+\newblock
+
+
+\end{thebibliography}

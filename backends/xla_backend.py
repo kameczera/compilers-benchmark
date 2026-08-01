@@ -16,12 +16,12 @@ except Exception:
         from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
 
 try:
-    from ..models.resnet_jax import load_resnet18_from_flaxmodels
+    from ..models.resnet_jax import load_resnet18_from_flaxmodels, load_resnet50_from_flaxmodels
 except Exception:
     try:
-        from models.resnet_jax import load_resnet18_from_flaxmodels
+        from models.resnet_jax import load_resnet18_from_flaxmodels, load_resnet50_from_flaxmodels
     except Exception:
-        from cnnbench.models.resnet_jax import load_resnet18_from_flaxmodels
+        from cnnbench.models.resnet_jax import load_resnet18_from_flaxmodels, load_resnet50_from_flaxmodels
 
 
 # ====== HLO kernel counter (texto) ======
@@ -82,6 +82,19 @@ def _dtype_map(dtype: str):
         return jnp.float16
     return jnp.float32
 
+
+def _cuda_library_versions() -> Dict[str, Any]:
+    """Report both the versions used to build and to run the JAX CUDA plugin."""
+    versions: Dict[str, Any] = {}
+    try:
+        from jax._src.lib import cuda_versions
+
+        versions["cudnn_build_version"] = int(cuda_versions.cudnn_build_version())
+        versions["cudnn_runtime_version"] = int(cuda_versions.cudnn_get_version())
+    except Exception as exc:
+        versions["version_probe_error"] = repr(exc)
+    return versions
+
 def run_xla(model_name: str = "resnet18",
             device: str = "cuda",   # JAX seleciona o backend disponível
             dtype: str = "fp32",
@@ -89,7 +102,8 @@ def run_xla(model_name: str = "resnet18",
             warmup: int = 10,
             iters: int = 50,
             power_compile_w: float = 25.0,
-            power_exec_w: float = 25.0) -> Dict[str, Any]:
+            power_exec_w: float = 25.0,
+            variant: str = "both") -> Dict[str, Any]:
     """
     Mede compilação/execução estilo 'script antigo':
       - 1ª chamada jit = compile + run  -> first_call_ms (TTFB)
@@ -98,6 +112,9 @@ def run_xla(model_name: str = "resnet18",
       - compile_ms ≈ max(0, first_call_ms - avg_exec_ms)
     Além disso, salva HLO 'unoptimized' e (quando possível) 'optimized', com contagem.
     """
+    if variant not in {"both", "fused"}:
+        raise ValueError(f"unknown XLA variant: {variant}")
+
     import time, math
     from pathlib import Path
 
@@ -128,7 +145,10 @@ def run_xla(model_name: str = "resnet18",
     nhwc = (N, H, W, C)
     jdtype = _dtype_map(dtype)
 
-    apply_fn, variables, x = load_resnet18_from_flaxmodels(input_shape=nhwc, dtype=jdtype)
+    if str(model_name).lower().replace("-", "").replace("_", "") in ("resnet50", "r50"):
+        apply_fn, variables, x = load_resnet50_from_flaxmodels(input_shape=nhwc, dtype=jdtype)
+    else:
+        apply_fn, variables, x = load_resnet18_from_flaxmodels(input_shape=nhwc, dtype=jdtype)
 
     # força FP32 conforme o script antigo
     if x.dtype != jnp.float32:
@@ -142,19 +162,21 @@ def run_xla(model_name: str = "resnet18",
         return apply_fn(variables, inp)
 
     # ----- Baseline sem JIT (unfused) -----
-    # warmup completo (mesmo protocolo dos demais backends)
-    for _ in range(max(1, warmup)):
-        y0 = forward(x)
-        try:
-            jax.block_until_ready(y0)
-        except Exception:
-            pass
+    unfused_stats = None
+    if variant == "both":
+        # warmup completo (mesmo protocolo dos demais backends)
+        for _ in range(max(1, warmup)):
+            y0 = forward(x)
+            try:
+                jax.block_until_ready(y0)
+            except Exception:
+                pass
 
-    # steady-state sem JIT
-    unfused_samples = _measure_per_iter_ms(lambda: forward(x), iters)
-    unfused_stats = stats_ms(unfused_samples)
-    eager_exec_ms = unfused_stats["mean"]
-    eager_ttfb_ms = eager_exec_ms
+        # steady-state sem JIT
+        unfused_samples = _measure_per_iter_ms(lambda: forward(x), iters)
+        unfused_stats = stats_ms(unfused_samples)
+        eager_exec_ms = unfused_stats["mean"]
+        eager_ttfb_ms = eager_exec_ms
 
     # ----- JIT -----
     jitted = jax.jit(forward)
@@ -240,29 +262,44 @@ def run_xla(model_name: str = "resnet18",
     if hlo_opt_info is not None:
         ir_dump["fused_jit_optimized"] = hlo_opt_info
 
+    shape_out = {
+        "fused_jit": {
+            "ttfb_ms": float(ttfb_ms),
+            "compile_ms": float(compile_ms),
+            "first_exec_ms": float(first_exec_ms),
+            "exec_ms": float(exec_ms),
+            "exec_ms_std": float(fused_stats["std"]),
+            "exec_ms_ci95": float(fused_stats["ci95_halfwidth"]),
+            "exec_samples_ms": fused_stats["samples"],
+            "energy_j": float(energy),
+        }
+    }
+    if unfused_stats is not None:
+        shape_out["unfused"] = {
+            "ttfb_ms": float(eager_ttfb_ms),
+            "exec_ms": float(eager_exec_ms),
+            "exec_ms_std": float(unfused_stats["std"]),
+            "exec_ms_ci95": float(unfused_stats["ci95_halfwidth"]),
+            "exec_samples_ms": unfused_stats["samples"],
+        }
+        shape_out["speedup_exec_x"] = (
+            float(eager_exec_ms / exec_ms) if exec_ms > 0 else None
+        )
+
     return {
-        "meta": {"device": device, "dtype": dtype, "warmup": warmup, "iters": iters},
-        "shapes": {
-            pretty_shape(shape_nchw): {
-                "unfused": {
-                    "ttfb_ms": float(eager_ttfb_ms),
-                    "exec_ms": float(eager_exec_ms),
-                    "exec_ms_std": float(unfused_stats["std"]),
-                    "exec_ms_ci95": float(unfused_stats["ci95_halfwidth"]),
-                    "exec_samples_ms": unfused_stats["samples"],
-                },
-                "fused_jit": {
-                    "ttfb_ms": float(ttfb_ms),
-                    "compile_ms": float(compile_ms),
-                    "first_exec_ms": float(first_exec_ms),
-                    "exec_ms": float(exec_ms),
-                    "exec_ms_std": float(fused_stats["std"]),
-                    "exec_ms_ci95": float(fused_stats["ci95_halfwidth"]),
-                    "exec_samples_ms": fused_stats["samples"],
-                    "energy_j": float(energy),
-                },
-                "speedup_exec_x": float(eager_exec_ms / exec_ms) if exec_ms > 0 else None,
-            }
+        "meta": {
+            "device": device,
+            "dtype": dtype,
+            "warmup": warmup,
+            "iters": iters,
+            "variant": variant,
+            "model_seed": 0,
+            "input_pattern": "ones",
+            "weights": "random_init",
+            "input_normalization_in_model": False,
+            "output": "logits",
+            **_cuda_library_versions(),
         },
+        "shapes": {pretty_shape(shape_nchw): shape_out},
         "ir_dump": ir_dump,
     }

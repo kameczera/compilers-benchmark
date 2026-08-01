@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "backend": "inductor",
+    "model": "bert",
+    "input": {
+      "batch": 1,
+      "seq_len": 128
+    },
+    "compile_repeats": 5,
+    "warmup": 10,
+    "iters_per_repeat": 50,
+    "seed": 0,
+    "cold_process_isolation": true,
+    "private_compiler_cache_per_process": true,
+    "failed_attempts": [],
+    "host": {
+      "python": "3.12.3",
+      "platform": "Linux-6.17.10-100.fc41.x86_64-x86_64-with-glibc2.39"
+    }
+  },
+  "result": {
+    "compile_ms": 9033.417974788033,
+    "compile_ms_std": 262.4318603475554,
+    "compile_ms_ci95": 325.7999540512101,
+    "compile_samples_ms": [
+      9339.3525,
+      9030.5239,
+      9231.5478,
+      8875.1269,
+      8690.5388
+    ],
+    "ttfb_ms": 9041.484947400022,
+    "exec_ms": 8.0669708,
+    "exec_ms_std": 0.22453168179989108,
+    "exec_run_means_ms": [
+      8.1621,
+      8.0545,
+      8.0677,
+      8.0599,
+      7.9907
+    ],
+    "exec_run_means_ms_std": 0.06139429896700069,
+    "exec_ms_ci95": 0.07621886975142728,
+    "exec_ms_ci95_method": "student_t_over_process_means",
+    "exec_samples_n": 250,
+    "software": {
+      "python": "3.12.3",
+      "torch": "2.9.0+cu128"
+    },
+    "model_info": {
+      "model": "bert",
+      "hidden_size": 768,
+      "num_layers": 12,
+      "vocab_size": 30522,
+      "weights": "random_init"
+    },
+    "cache_policy": {
+      "persistent_compiler_cache_disabled": true,
+      "torchinductor_cache_dir": "/tmp/cnnbench-transformers-f9v8bydq/repeat_01/a1/torchinductor",
+      "triton_cache_dir": "/tmp/cnnbench-transformers-f9v8bydq/repeat_01/a1/triton",
+      "jax_cache_dir": "/tmp/cnnbench-transformers-f9v8bydq/repeat_01/a1/jax"
+    },
+    "ir_dump": {
+      "summary": {
+        "triton_launches_total": null,
+        "triton_kernels_unicos": null,
+        "extern_kernels_total": null,
+        "code_size_bytes": 627587,
+        "code_lines": 6952
+      },
+      "capture_method": "inductor_cache_files",
+      "replicate_paths": [
+        "ir_dumps/transformers/inductor/1785557156609_bert_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785557173109_bert_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785557189757_bert_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785557206036_bert_1x128/fused_inductor_output_code.py",
+        "ir_dumps/transformers/inductor/1785557221960_bert_1x128/fused_inductor_output_code.py"
+      ],
+      "replicate_summaries_identical": true
+    }
+  }
+}

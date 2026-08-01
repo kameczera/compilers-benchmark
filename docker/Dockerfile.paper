@@ -1,0 +1,24 @@
+# The digest fixes the TeX Live 2026 base used to build the archived PDF.
+FROM texlive/texlive:latest-small@sha256:837e73be008b6b24b697ccd2a305903278e3ea6f7ae918a0078227b4dd56ee5a
+
+RUN tlmgr install \
+    acmart \
+    adjustbox \
+    comment \
+    environ \
+    fancyhdr \
+    hyperxmp \
+    inconsolata \
+    libertine \
+    listingsutf8 \
+    makecell \
+    multirow \
+    ncctools \
+    newtx \
+    preprint \
+    seqsplit \
+    totpages \
+    trimspaces \
+    xurl
+
+WORKDIR /workspace/docs/sblp

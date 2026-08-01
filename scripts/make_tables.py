@@ -8,10 +8,10 @@ Entrada:  um diretório com JSONs nomeados <backend>_<modelo>_<NxCxHxW>.json
           versão tipo inductor29_* também são aceitos)
 Saída:    <out>/table_resnet_compile_exec.tex   (Tabela 1 do artigo)
           <out>/table_fold_resnet18.tex, table_fold_resnet50.tex
-          <out>/summary.md                      (tudo em Markdown + n_eq + kernels)
+          <out>/summary.md                      (tudo em Markdown + crossover + kernels)
 
 Uso:
-  python scripts/make_tables.py --results-dir results/v2 --out-dir results/v2/tables
+  python scripts/make_tables.py --results-dir results/k5 --out-dir results/k5/tables
 """
 from __future__ import annotations
 
@@ -46,21 +46,67 @@ def load_results(results_dir: Path) -> dict:
             variants = {"fused": shp.get("fused_jit")}
         elif backend == "tvm":
             variants = {"fused": shp.get("fused"), "unfused": shp.get("unfused")}
-        out[(backend, model, shape)] = {
+        key = (backend, model, shape)
+        if key in out:
+            raise ValueError(
+                f"duplicate result for {key}: {out[key]['file']} and {p.name}"
+            )
+        out[key] = {
             "error": err,
             "variants": variants,
             "meta": block.get("meta"),
             "ir_dump": block.get("ir_dump", {}),
             "file": p.name,
+            "top_meta": data.get("meta", {}),
         }
     return out
+
+
+def require_complete_k5(results) -> None:
+    expected = {
+        (backend, model, shape)
+        for backend in ("inductor", "tvm", "xla")
+        for model in MODELS
+        for shape in SHAPES
+    }
+    missing = sorted(expected - set(results))
+    if missing:
+        raise ValueError(f"incomplete ResNet grid; missing: {missing}")
+    invalid = []
+    for key in sorted(expected):
+        rec = results[key]
+        repeats = rec["top_meta"].get("compile_repeats")
+        backend = key[0]
+        metadata_ok = True
+        if backend == "inductor":
+            metadata_ok = bool(
+                (rec["meta"] or {}).get("base_fold_same_initial_state")
+            )
+        elif backend == "tvm":
+            metadata_ok = (rec["meta"] or {}).get("model_seed") == 0
+        elif backend == "xla":
+            metadata_ok = (
+                (rec["meta"] or {}).get("weights") == "random_init"
+                and (rec["meta"] or {}).get("input_normalization_in_model") is False
+                and (rec["meta"] or {}).get("output") == "logits"
+                and (rec["meta"] or {}).get("cudnn_runtime_version") == 91100
+            )
+        if repeats != 5 or rec["error"] or not metadata_ok:
+            invalid.append((key, repeats, rec["error"], metadata_ok))
+    if invalid:
+        raise ValueError(
+            "the article requires successful K=5 cells; invalid: "
+            f"{invalid}"
+        )
 
 
 def fmt_exec(v) -> str:
     if not v:
         return "---"
     mean = v.get("exec_ms")
-    std = v.get("exec_ms_std")
+    # The process is the experimental unit. Prefer the standard deviation of
+    # the K process means over the pooled within-process standard deviation.
+    std = v.get("exec_run_means_ms_std", v.get("exec_ms_std"))
     if mean is None:
         return "---"
     if std is None:
@@ -71,7 +117,10 @@ def fmt_exec(v) -> str:
 def fmt_compile(v) -> str:
     if not v or v.get("compile_ms") is None:
         return "---"
-    return f"{v['compile_ms']:.0f}"
+    std = v.get("compile_ms_std")
+    if std is None:
+        return f"{v['compile_ms']:.0f}"
+    return f"{v['compile_ms']:.0f} $\\pm$ {std:.0f}"
 
 
 def cell(results, backend, model, shape, variant="fused"):
@@ -81,6 +130,29 @@ def cell(results, backend, model, shape, variant="fused"):
     if rec["error"]:
         return None, "erro"
     return rec["variants"].get(variant), None
+
+
+def clear_best_backend(results, model, shape, metric):
+    """Fastest mean only when its 95% CI does not overlap any competitor."""
+    candidates = []
+    for backend in ("inductor", "tvm", "xla"):
+        value, _ = cell(results, backend, model, shape)
+        if not value or value.get(metric) is None:
+            continue
+        mean = float(value[metric])
+        ci = value.get(f"{metric}_ci95")
+        candidates.append((backend, mean, None if ci is None else float(ci)))
+    if len(candidates) < 2 or any(ci is None for _, _, ci in candidates):
+        return None
+    winner = min(candidates, key=lambda item: item[1])
+    _, mean, ci = winner
+    if all(
+        mean + ci < other_mean - other_ci
+        for backend, other_mean, other_ci in candidates
+        if backend != winner[0]
+    ):
+        return winner[0]
+    return None
 
 
 def table_resnet(results) -> str:
@@ -95,7 +167,13 @@ def table_resnet(results) -> str:
                 if v is None:
                     cols += [f"\\multicolumn{{1}}{{c}}{{---}}", f"\\multicolumn{{1}}{{c}}{{({why})}}"]
                 else:
-                    cols += [fmt_compile(v), fmt_exec(v)]
+                    compile_cell = fmt_compile(v)
+                    exec_cell = fmt_exec(v)
+                    if clear_best_backend(results, model, shape, "compile_ms") == backend:
+                        compile_cell = f"\\best{{{compile_cell}}}"
+                    if clear_best_backend(results, model, shape, "exec_ms") == backend:
+                        exec_cell = f"\\best{{{exec_cell}}}"
+                    cols += [compile_cell, exec_cell]
             rows.append(f"{pref}& ({n},\\,{c},\\,{h},\\,{w}) & " + " & ".join(cols) + " \\\\")
         rows.append("\\midrule")
     body = "\n".join(rows[:-1])
@@ -121,8 +199,8 @@ def table_fold(results, model: str) -> str:
         dc = (fold["compile_ms"] - fused["compile_ms"]) / fused["compile_ms"] * 100
         de = (fold["exec_ms"] - fused["exec_ms"]) / fused["exec_ms"] * 100
         rows.append(
-            f"({n},{c},{h},{w}) & {fused['compile_ms']:.0f} & {fold['compile_ms']:.2f} & "
-            f"\\({dc:+.1f}\\%\\) & {fused['exec_ms']:.2f} & {fold['exec_ms']:.2f} & \\({de:+.1f}\\%\\) \\\\"
+            f"({n},{c},{h},{w}) & {fmt_compile(fused)} & {fmt_compile(fold)} & "
+            f"\\({dc:+.1f}\\%\\) & {fmt_exec(fused)} & {fmt_exec(fold)} & \\({de:+.1f}\\%\\) \\\\"
         )
     return (
         "% Gerado por scripts/make_tables.py — NÃO editar à mão\n"
@@ -134,12 +212,16 @@ def table_fold(results, model: str) -> str:
 
 
 def n_eq(fused, fold):
-    """Ponto de equivalência do fold: n_eq = (b_b - b_f) / (a_f - a_b).
-    Negativo (fold melhor em compile E exec) é reportado como 0."""
+    """Crossover do fold: (b_b - b_f) / (a_f - a_b).
+
+    Zero é o sentinela para o caso sem crossover em n>=0 no qual fold tem
+    menor custo de compilação e latência média não maior.
+    """
     if not fused or not fold:
         return None
     da = fold["exec_ms"] - fused["exec_ms"]
-    db = fused["compile_ms"] - fold["compile_ms"]
+    fold_fixed = fold.get("compile_plus_preprocess_ms", fold["compile_ms"])
+    db = fused["compile_ms"] - fold_fixed
     if abs(da) < 1e-12:
         return math.inf
     return max(0.0, db / da)
@@ -149,8 +231,8 @@ def summary_md(results) -> str:
     lines = ["# Resumo gerado por scripts/make_tables.py", ""]
     lines.append("## Compile / Exec (média ± sd, ms)")
     lines.append("")
-    lines.append("| backend | modelo | shape | compile_ms | exec_ms ± sd | IC95 (±) | status |")
-    lines.append("|---|---|---|---|---|---|---|")
+    lines.append("| backend | modelo | shape | compile_ms ± sd | compile IC95 (±) | exec_ms ± sd | exec IC95 (±) | status |")
+    lines.append("|---|---|---|---|---|---|---|---|")
     for backend in ["inductor", "tvm", "xla"]:
         for model in MODELS:
             for shape in SHAPES:
@@ -158,23 +240,34 @@ def summary_md(results) -> str:
                 if rec is None:
                     continue
                 if rec["error"]:
-                    lines.append(f"| {backend} | {model} | {shape} | — | — | — | ERRO: {rec['error'][:60]} |")
+                    lines.append(f"| {backend} | {model} | {shape} | — | — | — | — | ERRO: {rec['error'][:60]} |")
                     continue
                 v = rec["variants"].get("fused")
                 if not v:
-                    lines.append(f"| {backend} | {model} | {shape} | — | — | — | sem bloco fused |")
+                    lines.append(f"| {backend} | {model} | {shape} | — | — | — | — | sem bloco fused |")
                     continue
-                ci = v.get("exec_ms_ci95")
+                exec_ci = v.get("exec_ms_ci95")
+                compile_std = v.get("compile_ms_std")
+                compile_ci = v.get("compile_ms_ci95")
+                compile_cell = (
+                    f"{v['compile_ms']:.0f} ± {compile_std:.0f}"
+                    if compile_std is not None
+                    else f"{v['compile_ms']:.0f}"
+                )
                 lines.append(
-                    f"| {backend} | {model} | {shape} | {v['compile_ms']:.0f} | "
-                    f"{v['exec_ms']:.2f} ± {v.get('exec_ms_std', float('nan')):.2f} | "
-                    f"{ci:.3f} |  |" if ci is not None else
-                    f"| {backend} | {model} | {shape} | {v['compile_ms']:.0f} | {v['exec_ms']:.2f} | — |  |"
+                    f"| {backend} | {model} | {shape} | {compile_cell} | "
+                    f"{compile_ci:.1f} | "
+                    f"{v['exec_ms']:.2f} ± "
+                    f"{v.get('exec_run_means_ms_std', v.get('exec_ms_std', float('nan'))):.2f} | "
+                    f"{exec_ci:.3f} |  |"
+                    if compile_ci is not None and exec_ci is not None
+                    else f"| {backend} | {model} | {shape} | {compile_cell} | — | "
+                    f"{v['exec_ms']:.2f} | — |  |"
                 )
     lines.append("")
-    lines.append("## Fold (TorchInductor): deltas e ponto de equivalência n_eq")
+    lines.append("## Fold (TorchInductor): deltas e crossover de custo total")
     lines.append("")
-    lines.append("| modelo | shape | Δcompile | Δexec | n_eq |")
+    lines.append("| modelo | shape | Δcompile | Δexec | n_cross (0 = fold domina) |")
     lines.append("|---|---|---|---|---|")
     for model in MODELS:
         for shape in SHAPES:
@@ -208,11 +301,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results-dir", required=True)
     ap.add_argument("--out-dir", required=True)
+    ap.add_argument(
+        "--require-complete-k5",
+        action="store_true",
+        help="fail unless all 30 ResNet backend/model/shape cells are valid K=5",
+    )
     args = ap.parse_args()
 
     results = load_results(Path(args.results_dir))
     if not results:
         raise SystemExit(f"nenhum JSON reconhecido em {args.results_dir}")
+    if args.require_complete_k5:
+        require_complete_k5(results)
 
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)

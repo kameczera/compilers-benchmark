@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this artifact, please cite the SBLP 2026 paper below."
+type: software
+title: "CNN Compilers Benchmark: Artifact for Gaps in Operator Fusion for Deep Learning Systems"
+version: 1.0.0
+license: MIT
+repository-code: "https://github.com/kameczera/compilers-benchmark"
+authors:
+  - family-names: Kamei
+    given-names: Leonardo Yukio Macedo
+    email: leokamei1@gmail.com
+  - family-names: Costa
+    given-names: Pedro Henrique Ramos
+    email: phramoscosta@gmail.com
+preferred-citation:
+  type: conference-paper
+  title: "Gaps in Operator Fusion for Deep Learning Systems: The Trade-off Between Compilation and Execution of Unfused Operations"
+  authors:
+    - family-names: Kamei
+      given-names: Leonardo Yukio Macedo
+    - family-names: Costa
+      given-names: Pedro Henrique Ramos
+  collection-title: "30th Brazilian Symposium on Programming Languages (SBLP 2026)"
+  year: 2026

@@ -1,19 +1,71 @@
-# ambientes virtuais
-.venv_xla/
-.venv_tvm/
-
-# notas internas de desenvolvimento — não publicar no GitHub
-docs/dev-notes/
-
-# saídas do benchmark (JSONs soltos de execuções ad-hoc).
-# As campanhas de medição que sustentam o artigo ficam VERSIONADAS em
-# results/ — são os dados brutos do artefato (selo de reprodutibilidade).
-out_*.json
-
-# python
+# Ambientes e caches locais
+.venv*/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
-# HLO não-otimizado é gigante (~93 MB, pesos embutidos como literais);
-# mantenha no repositório apenas os artefatos que forem citados no artigo.
-ir_dumps/xla/*/fused_jit_unoptimized.hlo
+# Saídas reproduzíveis do benchmark
+artifacts/
+results/*
+# A campanha final K=5 sustenta o artigo e deve entrar no depósito arquivado.
+!results/k5/
+results/k5/*
+!results/k5/*.json
+!results/k5/cache_audit.md
+!results/k5/tables/
+results/k5/tables/*
+!results/k5/tables/*.json
+!results/k5/tables/*.tex
+!results/k5/tables/summary.md
+# A auditoria de aplicabilidade do fold no BERT sustenta a Tabela tab:bert_ln_fold.
+!results/bert_fold/
+results/bert_fold/*
+!results/bert_fold/*.json
+# A comparacao BERT/GPT-2 entre backends sustenta as tabelas Transformer.
+!results/transformers/
+results/transformers/*
+!results/transformers/*.json
+plots/
+# As evidências de IR da campanha K=5 acompanham o depósito: `make cache_audit`
+# checa cada caminho registrado nos JSONs. Fora o HLO não-otimizado do XLA, que
+# embute os pesos como literais (~7 GB na grade) e é regenerável — ver README §7.
+ir_dumps/*
+!ir_dumps/inductor/
+!ir_dumps/tvm/
+!ir_dumps/xla/
+!ir_dumps/transformers/
+ir_dumps/xla/**/fused_jit_unoptimized.hlo
+torch_compile_debug/
+out_*.json
+cnn_compilers_benchmark.json
+
+# Relatórios, tabelas geradas e logs
+reports/
+env_reports/*
+logs/
+docs/sblp/generated/*
+# As seis tabelas consumidas por \input{} em main.tex fazem parte da fonte
+# camera-ready: sem elas o PDF não compila a partir de um clone limpo.
+!docs/sblp/generated/table_resnet_compile_exec.tex
+!docs/sblp/generated/table_fold_resnet18.tex
+!docs/sblp/generated/table_fold_resnet50.tex
+!docs/sblp/generated/table_bert_ln_fold.tex
+!docs/sblp/generated/table_bert_compile_exec.tex
+!docs/sblp/generated/table_gpt2_compile_exec.tex
+*.log
+*.trace
+*.prof
+*_report.*
+report_*.*
+!env_reports/environment_report.json
+
+# Artefatos Docker exportados
+dist/
+
+# Notas internas de desenvolvimento
+docs/dev-notes/
