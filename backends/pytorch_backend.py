@@ -26,6 +26,31 @@ except Exception:
         from cnnbench.models.resnet_torch import get_resnet, to_dtype
 
 
+def use_scratch_debug_dir() -> None:
+    """Manda o `torch_compile_debug/` do Inductor para um temporario efemero.
+
+    Os scripts de Transformer/BERT compilam com `trace.enabled: True`, que faz
+    o Inductor despejar ~1 MB de FX/IR por compilacao. Nenhum leitor do
+    artefato consome esses arquivos — a contagem de kernels vem do diretorio de
+    cache do Inductor (`_new_inductor_files`) —, mas eles se acumulavam no
+    diretorio de trabalho a cada execucao.
+
+    A opcao continua ligada, entao o trabalho de I/O medido pela compilacao nao
+    muda; so o destino muda, e ele e removido quando o processo termina.
+    """
+    import atexit
+    import shutil
+    import tempfile
+
+    try:
+        import torch._dynamo.config as dynamo_config
+    except Exception:
+        return
+    scratch = tempfile.mkdtemp(prefix="cnnbench-inductor-debug-")
+    dynamo_config.debug_dir_root = scratch
+    atexit.register(shutil.rmtree, scratch, True)
+
+
 # ====== Kernel counters (adaptados do main.py) ======
 class InductorKernelCounter(ast.NodeVisitor):
     def __init__(self, source_text=None):

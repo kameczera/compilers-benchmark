@@ -51,12 +51,35 @@ an NVIDIA driver compatible with CUDA 12.8.
 | CPU fold correctness | about 1 minute | under 1 GiB beyond dependencies | no |
 | Docker build | 45--120 minutes | 25--40 GiB image plus build cache | no |
 | Three-backend smoke test | 10--30 minutes | about 1 GiB of outputs | yes |
-| Complete K=5 ResNet grid | several hours | allow at least 20 GiB for JSON, IR, plots, and logs | yes |
-| Complete K=5 Transformer grid | about 30--60 minutes on the reference host | allow at least 2 GiB for JSON, IR, and logs | yes |
+| Complete K=5 ResNet grid | several hours | about 1 GiB of JSON, IR, plots, and logs | yes |
+| Complete K=5 Transformer grid | about 30--60 minutes on the reference host | about 100 MiB of JSON, IR, and logs | yes |
 
 Times vary substantially with the GPU, network, Docker cache, compiler
 versions, and autotuning. The full grid should be scheduled as a long-running
 experiment; the smoke test is the appropriate first evaluation.
+
+### Disk-space management
+
+Docker dominates the storage cost, and it does not reclaim space on its own:
+each repeated `make docker_build` leaves the previous build cache and untagged
+layers behind, which can reach tens of gigabytes. Check and reclaim with:
+
+```bash
+make docker_disk      # reports total and reclaimable space
+make docker_reclaim   # drops the build cache and dangling images
+```
+
+Inside the working tree, `make prune_check` reports and `make prune` removes
+everything the grid regenerates and the deposit does not archive. The XLA
+`fused_jit_unoptimized.hlo` dumps embed the weights as literals (~195 MB each,
+~7 GB per full grid); they are no longer written by default, so a repeated grid
+no longer accumulates them. Set `CNNBENCH_DUMP_XLA_UNOPT_HLO=1` to regenerate
+them on demand. The JSON still records their path, size, and kernel summary, so
+`make cache_audit` behaves exactly as before, reporting them as *declared but
+not archived*.
+
+If you also export the image with `make docker_export`, budget a further
+~13 GiB for `dist/cnnbench-artifact.tar.gz` and delete it once uploaded.
 
 ## 3. Recommended Evaluation
 

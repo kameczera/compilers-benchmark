@@ -406,7 +406,28 @@ make clean_inductor_cache
 # remove /tmp/torchinductor_$USER; K>1 usa caches privados por processo
 ```
 
-**Se mesmo assim vier vazio** (ex.: outra versão de torch com layout de cache diferente), o JSON marca `kernel_count.warning` e `capture_method: stdout_fallback`. Nesse caso: `make clean_inductor_cache`, confirme `TORCHINDUCTOR_FORCE_DISABLE_CACHES=1` no ambiente e repita a medição. Este procedimento faz parte do artefato justamente para que avaliadores consigam reproduzir a contagem de kernels do PyTorch. A versão depositada carrega cerca de 130 MB de dumps otimizados e código gerado, incluindo os 105 IRs Transformer referenciados, **exceto** o HLO não-otimizado do XLA: ele embute os pesos como literais (~195 MB por dump, ~7 GB na grade) e é regenerável pelo comando desta seção. O `make cache_audit` conhece essa exceção na grade ResNet — verifica e faz o hash dos 200 artefatos arquivados e marca os 50 HLOs não-otimizados declarados como *declared but not archived*, usando o `code_size_bytes` registrado no JSON. Qualquer outro artefato esperado ausente faz a auditoria falhar.
+**Se mesmo assim vier vazio** (ex.: outra versão de torch com layout de cache diferente), o JSON marca `kernel_count.warning` e `capture_method: stdout_fallback`. Nesse caso: `make clean_inductor_cache`, confirme `TORCHINDUCTOR_FORCE_DISABLE_CACHES=1` no ambiente e repita a medição. Este procedimento faz parte do artefato justamente para que avaliadores consigam reproduzir a contagem de kernels do PyTorch. A versão depositada carrega cerca de 130 MB de dumps otimizados e código gerado, incluindo os 105 IRs Transformer referenciados, **exceto** o HLO não-otimizado do XLA: ele embute os pesos como literais (~195 MB por dump, ~7 GB na grade). O `make cache_audit` conhece essa exceção na grade ResNet — verifica e faz o hash dos 200 artefatos arquivados e marca os 50 HLOs não-otimizados declarados como *declared but not archived*, usando o `code_size_bytes` registrado no JSON. Qualquer outro artefato esperado ausente faz a auditoria falhar.
+
+### 7.1) HLO não-otimizado do XLA: gravação opt-in
+
+Por ser volumoso, regenerável e nunca arquivado, **esse arquivo não é escrito
+em disco por padrão**. O backend continua calculando o texto em memória, então
+o JSON registra normalmente o `path`, o `code_size_bytes` e o resumo de kernels
+— é exatamente o que `make cache_audit` consome para marcar a linha como
+*declared but not archived*. Sem esse comportamento, cada grade K=5 completa
+deixava ~7 GB para trás, e repetir a grade enchia o disco.
+
+Para regenerar os arquivos (por exemplo, para inspecionar o HLO de entrada do
+XLA), ligue a variável e rode a célula desejada:
+
+```bash
+CNNBENCH_DUMP_XLA_UNOPT_HLO=1 python run_bench.py --backends xla \
+  --model resnet50 --batch 1 --height 224 --width 224
+# reserve ~195 MB por dump; use make prune depois
+```
+
+A gravação acontece **fora** da janela cronometrada (antes da primeira chamada
+compilada), então ligar ou desligar a variável não altera `compile_ms`.
 
 *Medição de cache quente (opcional).* Para medir de propósito o tempo com cache reaproveitado, rode com `TORCHINDUCTOR_FORCE_DISABLE_CACHES=0` **sem** limpar o cache — e reporte separadamente, pois não é comparável ao `compile_ms` dos outros backends.
 
@@ -443,11 +464,22 @@ versões efetivamente carregadas em cada reprodução.
 make clean_inductor_cache   # caches do TorchInductor/Triton (ver §7)
 make clean                  # remove .venv_xla, .venv_tvm, out_*.json e locks
 make prune_check            # relata o que é regenerável, sem apagar
-make prune                  # remove o regenerável (tipicamente ~7 GB)
+make prune                  # remove o regenerável do diretório de trabalho
+make docker_disk            # quanto o Docker usa e quanto dá para recuperar
+make docker_reclaim         # descarta cache de build + imagens órfãs
 ```
 
+**Onde o disco realmente vai.** Numa reprodução completa, os maiores
+consumidores são, em ordem: (1) o cache de build e as imagens do Docker —
+recompilar o TVM do fonte acumula dezenas de GB que o Docker não recupera
+sozinho, por isso `make docker_disk`/`make docker_reclaim`; (2) o export da
+imagem, `dist/cnnbench-artifact.tar.gz` (~13 GB, apague depois de subir ao
+Zenodo); (3) o que `make prune` remove. Os HLOs não-otimizados do XLA, que
+antes somavam ~7 GB por grade, não são mais escritos por padrão (§7.1).
+
 O `prune` remove só o que a grade recria e o depósito não arquiva: os HLOs
-não-otimizados do XLA (§7), diretórios de IR órfãos de tentativas que falharam,
+não-otimizados do XLA (§7.1, se você os tiver regenerado), diretórios de IR
+órfãos de tentativas que falharam,
 `torch_compile_debug/`, `artifacts/` e `__pycache__/`. Ele **nunca** toca em JSON
 de resultado, tabela gerada, relatório de ambiente ou IR referenciado por algum
 JSON: antes de apagar ele recalcula o conjunto referenciado e aborta se a

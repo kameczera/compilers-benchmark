@@ -64,6 +64,7 @@ def _run_inductor(args) -> dict[str, Any]:
         _count_triton_from_text,
         _new_inductor_files,
         _pycodecache_files,
+        use_scratch_debug_dir,
     )
     from models.transformers_common import build_torch_model, torch_inputs
 
@@ -73,6 +74,7 @@ def _run_inductor(args) -> dict[str, Any]:
         inductor_config.force_disable_caches = True
     except Exception:
         pass
+    use_scratch_debug_dir()
     torch._dynamo.reset()
 
     device = torch.device("cuda")

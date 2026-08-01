@@ -56,6 +56,7 @@ BENCH_QUICK_ARGS ?= --device cuda --model resnet18 --dtype fp32 --batch 1 --heig
         bert_audit bert_table transformers_audit transformers_tables \
         paper_tables paper_image paper_pdf \
         docker_build docker_verify docker_smoke docker_grid docker_export docker_verify_export \
+        docker_disk docker_reclaim \
         clean_inductor_cache clean prune prune_check figures
 
 # Diretório dos JSONs medidos (entrada do make tables / saída do make grid)
@@ -110,7 +111,9 @@ help:
 	@echo ""
 	@echo "Limpeza:"
 	@echo "  make prune_check                             # relata o regeneravel, sem apagar"
-	@echo "  make prune                                   # remove o regeneravel (~7 GB)"
+	@echo "  make prune                                   # remove o regeneravel"
+	@echo "  make docker_disk                             # quanto o Docker usa e da p/ recuperar"
+	@echo "  make docker_reclaim                          # descarta cache de build + imagens orfas"
 	@echo ""
 	@echo "Contêiner reproduzível:"
 	@echo "  make docker_build                            # cria $(DOCKER_IMAGE)"
@@ -119,6 +122,7 @@ help:
 	@echo "  make docker_grid                             # grade completa no contêiner"
 	@echo "  make docker_export                           # exporta $(DOCKER_EXPORT) + checksum"
 	@echo "  make docker_verify_export                    # confere o checksum do arquivo baixado"
+	@echo "  make docker_disk / docker_reclaim            # uso de disco do Docker e recuperacao"
 	@echo ""
 	@echo "Conda workflow alternativo:"
 	@echo "  make conda_xla_env CONDA_ENV_XLA=teste_xla"
@@ -331,6 +335,20 @@ docker_export:
 docker_verify_export:
 	cd $(dir $(DOCKER_EXPORT)) && sha256sum --check $(notdir $(DOCKER_EXPORT)).sha256
 	@echo "[OK] Arquivo da imagem íntegro"
+
+# O build do TVM a partir do fonte gera muitas camadas intermediarias; repetir
+# `docker_build` acumula dezenas de GB de cache que o Docker nunca recupera
+# sozinho. Este alvo mostra o quanto da usado e o quanto da para recuperar.
+docker_disk:
+	@docker system df
+
+# Descarta cache de build e imagens sem tag (dangling). Nao remove
+# $(DOCKER_IMAGE) nem imagens em uso: use quando `make docker_disk` acusar
+# muito "RECLAIMABLE" apos repetir o build.
+docker_reclaim:
+	docker builder prune --force
+	docker image prune --force
+	@docker system df
 
 # -------------------- Diagnostics/locks --------------------
 show_versions_xla: xla_env

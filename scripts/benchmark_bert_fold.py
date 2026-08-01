@@ -132,6 +132,7 @@ def _compile_historical_protocol(
         _count_triton_from_text,
         _new_inductor_files,
         _pycodecache_files,
+        use_scratch_debug_dir,
     )
 
     try:
@@ -140,6 +141,7 @@ def _compile_historical_protocol(
         inductor_config.force_disable_caches = True
     except Exception:
         pass
+    use_scratch_debug_dir()
     torch._dynamo.reset()
 
     files_before = _pycodecache_files()

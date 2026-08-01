@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import time, math, re
+import os, time, math, re
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -60,6 +60,23 @@ class HLOKernelCounter:
             "custom_total": sum(self.custom_calls.values()),
             "custom_targets_unicos": len(self.custom_calls),
         }
+
+def _keep_unoptimized_hlo() -> bool:
+    """Escrever o HLO nao-otimizado do XLA em disco e opt-in.
+
+    O texto embute os pesos como literais: ate ~195 MB por dump e ~7 GB na
+    grade K=5 completa. O pacote depositado ja o exclui (`package_artifact.sh`),
+    `make cache_audit` o trata como *declared but not archived* usando o
+    `code_size_bytes` do JSON, e `make prune` o apagava depois. Escrever por
+    padrao so enchia o disco de quem roda a grade. O resumo de kernels e o
+    tamanho continuam sendo calculados em memoria, entao o JSON nao muda.
+
+    Ative com CNNBENCH_DUMP_XLA_UNOPT_HLO=1 para regenerar o arquivo.
+    """
+    return os.environ.get("CNNBENCH_DUMP_XLA_UNOPT_HLO", "0").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
+
 
 def _hlo_summary_with_size(txt: str) -> Dict[str, Any]:
     summary = HLOKernelCounter(txt).summary
@@ -193,7 +210,10 @@ def run_xla(model_name: str = "resnet18",
         except Exception:
             txt_unopt = lowered.as_text()
         p_unopt = out_dir / "fused_jit_unoptimized.hlo"
-        p_unopt.write_text(txt_unopt, encoding="utf-8")
+        # O arquivo em si é opt-in (ver _keep_unoptimized_hlo); o caminho, o
+        # tamanho e a contagem de kernels continuam registrados no JSON.
+        if _keep_unoptimized_hlo():
+            p_unopt.write_text(txt_unopt, encoding="utf-8")
         # contagem + tamanho do código
         hlo_unopt_info = {"path": str(p_unopt), "kernel_count": {"summary": _hlo_summary_with_size(txt_unopt)}}
     except Exception:
