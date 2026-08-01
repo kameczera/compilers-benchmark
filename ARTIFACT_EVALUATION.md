@@ -40,6 +40,35 @@ inside the timed interval. Fetch `bert-base-uncased` into the Hugging Face
 cache once before running it, as described in README section 5.2a; otherwise
 the script stops with an `OSError` about connecting to huggingface.co.
 
+### 1.1 Badge claims and justification
+
+This artifact claims two badges. Each item names evidence a reviewer can check
+without taking the authors' word for it.
+
+**Available.** The complete artifact is archived in a public repository under a
+version-specific DOI and the MIT license (`LICENSE` at the archive root, with the
+same license declared in `.zenodo.json` and `CITATION.cff`). The deposit is
+self-contained: benchmark source, pinned Python environments, the `Dockerfile`
+recipe, the complete raw K=5 grids, the compiler-IR evidence, the analysis and
+table/figure generators, and both the camera-ready PDF and its LaTeX source. The
+same persistent DOI appears in the paper, in `README.md` and in `CITATION.cff`,
+and `make artifact_submission_check` fails if the three ever disagree. The GitHub
+repository is a development mirror; the archived record is the citable copy.
+
+**Functional.** The artifact is documented, consistent, complete and exercisable:
+
+- *Documented.* `README.md` states the requirements, the installation, the expected outputs, the failure diagnosis and the resource costs. This guide maps every claim of the paper to its evidence and to the command that produces it (Section 1), estimates the cost of each task (Section 2) and gives a recommended order (Section 3), including a CPU-only path for a reviewer without a CUDA GPU.
+- *Consistent.* No number in the paper is transcribed by hand. The six tables consumed by `\input{}` in `main.tex` and the five figures are regenerated from the archived JSONs (`make tables`, `make bert_table`, `make transformers_tables`, `make figures`); rerunning those generators over the deposited data reproduces the deposited files. The withdrawn BERT fold claim is documented together with its isolated control experiment, and no value from the superseded run is used in the paper.
+- *Complete.* The deposit carries the entire measurement campaign: the 30 ResNet cells, the 21 Transformer cells with their 105 referenced IR files, the three BERT audit JSONs, the cache audit, the Welch/Holm statistics and the environment report. `make artifact_submission_check` refuses a package missing any of them, and it currently reports 0 failures and 0 warnings.
+- *Exercisable.* `make artifact_check` and the table generators run with `python3` and the standard library alone; `make check_fold` validates the transformation numerically on CPU; `make docker_build`, `make docker_verify` and `make docker_smoke` exercise the three backends end to end on a CUDA GPU.
+- *Verifiable integrity.* `make cache_audit` verifies and hashes the archived compiler artifacts against what each JSON declares, and the deposit publishes a SHA-256 file next to the source archive.
+
+**Not claimed.** The absolute timings are bound to the reference host (RTX 3050
+with the pinned driver, CUDA and framework versions), so the artifact does not
+claim that a re-execution reproduces the published numbers. The tolerated
+variation is stated in README section 5.2b and the measurement limits in README
+section 8.
+
 ## 2. Resource Estimate
 
 Reference host: Linux x86_64, NVIDIA RTX 3050 (8 GiB), 16 GiB system RAM, and

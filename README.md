@@ -8,7 +8,7 @@
 - **Persistent version:** <https://doi.org/10.5281/zenodo.21731237> — the version-specific DOI of this artifact, not the "all versions" record.
 - **Development repository:** <https://github.com/kameczera/compilers-benchmark>.
 - **License:** [MIT](LICENSE), allowing use, modification and redistribution.
-- **Intended badges:** *Available* (after the DOI deposit) and *Functional* (reproducible installation, automated checks, three-backend smoke test and full reproduction).
+- **Intended badges:** *Available* (after the DOI deposit) and *Functional* (reproducible installation, automated checks, three-backend smoke test and full reproduction). The justification for both, with the evidence for each criterion, is in [ARTIFACT_EVALUATION.md, section 1.1](ARTIFACT_EVALUATION.md#11-badge-claims-and-justification).
 
 The short guide for the evaluation committee is
 [ARTIFACT_EVALUATION.md](ARTIFACT_EVALUATION.md). Before building the archive to

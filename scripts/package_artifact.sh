@@ -11,6 +11,26 @@ trap 'rm -rf -- "$work_dir"' EXIT
 
 mkdir -p "$stage" "$extracted" "$(dirname "$output")"
 
+# The Zenodo record is immutable once published, so internal material must never
+# reach it: developer notes, the confidential reviewer reports, and superseded
+# drafts. The rsync filter below removes them; this guard fails the build if an
+# exclusion is ever dropped, both in staging and after a clean extraction.
+assert_no_private_material() {
+  local root="$1" label="$2" found
+  found="$(cd "$root" && find . \
+    \( -path './docs/dev-notes' \
+       -o -name 'reviews.md' \
+       -o -name 'feedback.md' \
+       -o -name 'MUDANCAS_DA_VERSAO_ANTIGA_PARA_A_NOVA.md' \
+       -o -name 'old.tex' \) -print)"
+  if [[ -n "$found" ]]; then
+    echo "[FAIL] internal material would be published in $label:" >&2
+    echo "$found" >&2
+    exit 1
+  fi
+  echo "[OK] no internal material in $label"
+}
+
 cd "$repo_root"
 includes=(
   .dockerignore .gitignore .zenodo.json
@@ -30,6 +50,7 @@ rsync -aR \
   --exclude='*.log' \
   --exclude='*.out' \
   --exclude='*unoptimized.hlo' \
+  --exclude='docs/dev-notes/' \
   --exclude='ir_dumps/transformers/' \
   --exclude='results/transformers/coverage.json' \
   --exclude='MUDANCAS_DA_VERSAO_ANTIGA_PARA_A_NOVA.md' \
@@ -65,6 +86,7 @@ PY
 rsync -aR --files-from="$ir_manifest" ./ "$stage/"
 
 echo "[CHECK] Validating staged release"
+assert_no_private_material "$stage" "the staged release"
 python3 "$stage/scripts/validate_artifact.py" --submission
 
 tar --sort=name --mtime='UTC 2026-08-01' \
@@ -77,6 +99,7 @@ tar --sort=name --mtime='UTC 2026-08-01' \
 
 tar -xzf "$output" -C "$extracted"
 echo "[CHECK] Validating a clean extraction"
+assert_no_private_material "$extracted" "a clean extraction"
 python3 "$extracted/scripts/validate_artifact.py" --submission
 (
   cd "$(dirname "$output")"
