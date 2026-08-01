@@ -54,6 +54,11 @@ an NVIDIA driver compatible with CUDA 12.8.
 | Complete K=5 ResNet grid | several hours | about 1 GiB of JSON, IR, plots, and logs | yes |
 | Complete K=5 Transformer grid | about 30--60 minutes on the reference host | about 100 MiB of JSON, IR, and logs | yes |
 
+Each isolated process writes its TorchInductor, Triton and JAX caches under
+`$TMPDIR`. On hosts where `/tmp` is a tmpfs — the Fedora and RHEL default — that
+space is physical memory, so export `TMPDIR` to a disk-backed directory before
+the full grids to keep a 16 GiB host from swapping.
+
 Times vary substantially with the GPU, network, Docker cache, compiler
 versions, and autotuning. The full grid should be scheduled as a long-running
 experiment; the smoke test is the appropriate first evaluation.
@@ -78,8 +83,8 @@ them on demand. The JSON still records their path, size, and kernel summary, so
 `make cache_audit` behaves exactly as before, reporting them as *declared but
 not archived*.
 
-If you also export the image with `make docker_export`, budget a further
-~13 GiB for `dist/cnnbench-artifact.tar.gz` and delete it once uploaded.
+If you also export the image with `make docker_export` to move it to another
+host, budget a further ~13 GiB for `dist/cnnbench-artifact.tar.gz`.
 
 ## 3. Recommended Evaluation
 
@@ -92,17 +97,34 @@ make docker_verify
 make docker_smoke
 ```
 
-`make docker_build` compiles TVM from source and takes 45--120 minutes. To skip
-it, download `cnnbench-artifact.tar.gz` — published as a separate file in the
-same Zenodo record — and load the prebuilt image instead of building:
+`make docker_build` compiles TVM from source and takes 45--120 minutes; it is
+the only step with that cost, and the Zenodo record ships the `Dockerfile`
+rather than a prebuilt image. The build produces the `cnnbench:artifact` tag the
+remaining commands expect, so `make docker_verify` and `make docker_smoke`
+proceed unchanged. On a machine without network access, export the image on a
+connected host with `make docker_export` and load it with
+`docker load < cnnbench-artifact.tar.gz` after checking its `.sha256`.
+
+### Evaluation without a CUDA GPU
+
+Everything except re-measuring the timings can be exercised on CPU. From the
+root of the archived release:
 
 ```bash
-sha256sum --check cnnbench-artifact.tar.gz.sha256
-docker load < cnnbench-artifact.tar.gz
+make artifact_check                          # structural and camera-ready preflight
+make artifact_submission_check               # complete K=5 grid, DOI, tables, PDF
+make tables bert_table transformers_tables   # rewrite the six paper tables from the raw JSONs
+make check_fold                              # CPU correctness of the Conv--BatchNorm fold
 ```
 
-That produces the same `cnnbench:artifact` tag the remaining commands expect, so
-`make docker_verify` and `make docker_smoke` proceed unchanged.
+The first three targets need only `python3` and the standard library; no
+container, no GPU, and no third-party package. `make check_fold` additionally
+builds the pinned Python environment and runs on CPU. Together they exercise the
+structural-completeness, table-provenance, and fold-correctness claims of
+Section 1: the six tables consumed by `main.tex` are rewritten from the archived
+`results/` JSONs, so any divergence between the paper and the raw data surfaces
+here. Re-measuring compilation and execution times --- `make docker_smoke` and
+the two full grids --- still requires the CUDA GPU described in Section 2.
 
 Successful validation includes lines similar to:
 
@@ -187,9 +209,8 @@ Before uploading to Zenodo, Figshare, or OSF:
 5. Run `make artifact_package`. It performs the strict check in staging and
    again after a clean extraction, then creates
    `cnnbench-source-v1.0.0.tar.gz` and its SHA-256 file. Upload both.
-6. Optionally upload `cnnbench-artifact.tar.gz` and its `.sha256` as separate
-   files in the same record so evaluators can skip the TVM build; keep the
-   source archive independently downloadable.
+6. Do not upload the ~13 GiB `cnnbench-artifact.tar.gz`: the record ships the
+   `Dockerfile`, and evaluators build the image with `make docker_build`.
 7. Ensure the repository license and the archive metadata both say MIT.
 8. Inspect the final PDF page break: excluding references, the camera-ready
    limit is 9 pages for a full paper or 5 pages for a short paper (the CFP

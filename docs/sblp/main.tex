@@ -26,9 +26,8 @@
 \acmConference[SBLP 2026]{30th Brazilian Symposium on Programming Languages}{September 8--11, 2026}{Sao Paulo, SP, Brazil}
 
 
-\title{Gaps in Operator Fusion for Deep Learning Systems: The \textit{Trade-off} Between Compilation and Execution of Unfused Operations}
+\title{Gaps in Operator Fusion for Deep Learning Systems: The Trade-off Between Compilation and Execution of Unfused Operations}
 \renewcommand{\shorttitle}{Operator-Fusion Gaps in DL Systems}
-\renewcommand{\shortauthors}{Kamei and Costa}
 
 \newcommand{\best}[1]{\textbf{#1}}
 
@@ -46,10 +45,12 @@
   \country{Brazil}}
 \email{phramoscosta@gmail.com}
 
+\renewcommand{\shortauthors}{Kamei and Costa}
+
 \begin{document}
 
 \begin{abstract}
-Operator fusion can reduce steady-state latency, but compiler work becomes relevant in short-lived inference workloads. We characterize native TVM, XLA, and PyTorch~2 (\textit{TorchInductor}) stacks on ResNet-18/50, BERT, and GPT-2 using \(K=5\) cold processes per model and input, 10 warmups, and 50 timed executions per process. We use the amortized cost model $T(n)=T_C+n\,T_X$, where $T_C$ is the backend-specific compilation-cost proxy, $T_X$ the steady-state latency, and $n$ the number of executions, to expose the regimes favored by each measured stack. For TorchInductor, an inference-only \textit{Conv--BatchNorm} parameter fold applied as offline preprocessing reduced the mean compiler-cost proxy by 29.5--41.1\% for ResNet-18 and 1.9--28.6\% for ResNet-50; nine of ten differences remain Holm-resolved after adding the measured 100--120-ms preprocessing cost. Execution effects were smaller and model-dependent. An audit of a previous BERT experiment found that its matcher performed zero rewrites and that the apparent gain came from compiling an unchanged graph second in the same process; we therefore withdraw that result. The benchmark reports measured system-level trade-offs, while neither the native-stack comparison nor the valid ResNet fold establishes a universal compiler pass ordering.
+Operator fusion can reduce steady-state latency, but compiler work becomes relevant in short-lived inference workloads. We characterize native TVM, XLA, and PyTorch~2 (\textit{TorchInductor}) stacks on ResNet-18/50, BERT, and GPT-2 using \(K=5\) cold processes per model and input, 10 warmups, and 50 timed executions per process. We use the amortized cost model $T(n)=T_C+n\,T_X$, where $T_C$ is the backend-specific compilation-cost proxy, $T_X$ the steady-state latency, and $n$ the number of executions, to expose the regimes favored by each measured stack. For TorchInductor, an inference-only \textit{Conv--BatchNorm} parameter fold applied as offline preprocessing reduced the mean compiler-cost proxy by 29.5--41.1\% for ResNet-18 and 1.9--28.6\% for ResNet-50; nine of ten differences remain Holm-resolved after adding the measured 100--120-ms preprocessing cost. Execution effects were smaller and model-dependent. An applicability audit of the BERT \textit{LayerNorm--Linear} fold finds no legal instance in the evaluated post-LayerNorm encoder: the structural matcher performs zero rewrites, and an isolated cold-process control resolves no timing difference. The benchmark reports measured system-level trade-offs, while neither the native-stack comparison nor the valid ResNet fold establishes a universal compiler pass ordering.
 \end{abstract}
 
 \keywords{Operator Fusion, Machine Learning Compilers, Compilation Time, Kernel Fusion, Performance Benchmarking}
@@ -58,19 +59,19 @@ Operator fusion can reduce steady-state latency, but compiler work becomes relev
 
 
 \section{Introduction}
-The \emph{operator fusion} technique has direct roots in classical compiler optimizations, such as \emph{loop} fusion, historically used to increase parallelism and improve data locality \cite{wolf1991wolf}. In modern compilers for Machine Learning, particularly on GPUs, this technique plays a central role: by combining multiple operations into a single \emph{kernel}, memory traffic is reduced, intermediate tensors are avoided, and the number of dynamic launches during execution is decreased \cite{chen2018tvm,liu2021dnnfusion}. Systems such as XLA, TVM, TensorRT, and the TorchInductor backend adopt aggressive fusion to amortize CPU--GPU communication costs and consolidate operator sequences into larger, more efficient \emph{kernels} \cite{xla2017leary,chen2018tvm,pytorch2022}.
+The \emph{operator fusion} technique has direct roots in classical compiler optimizations, such as \emph{loop} fusion, historically used to increase parallelism and improve data locality \cite{wolf1991wolf}. In modern compilers for Machine Learning, particularly on GPUs, this technique plays a central role: by combining multiple operations into a single \emph{kernel}, memory traffic is reduced, intermediate tensors are avoided, and the number of dynamic launches during execution is decreased \cite{chen2018tvm,liu2021dnnfusion}. Systems such as XLA, TVM, TensorRT, and the TorchInductor backend adopt aggressive fusion to amortize CPU--GPU communication costs and consolidate operator sequences into larger, more efficient kernels \cite{xla2017leary,chen2018tvm,pytorch2022}.
 
 Fusion is performed over computational/dataflow graphs or compiler intermediate representations. Deciding \emph{what} and \emph{how} to fuse is challenging: specific graph-partitioning formulations of operator fusion can be mapped to NP-complete problems, while classical loop-fusion formulations are likewise computationally difficult \cite{canesche2025xnnc,darte1999}. For this reason, compilers use legality rules, heuristics, and cost models. Compilation cost is especially important in dynamic workloads and scenarios with few repetitions, where fixed compiler work can dominate perceived performance.
 
 Many compiler evaluations emphasize steady-state latency, even though deployment decisions may also depend on compilation cost. Reporting both quantities under repeated cold processes makes explicit when additional fixed cost can be amortized. XLA \cite{snider2023xla}, TVM \cite{chen2018tvm}, and TorchInductor (PyTorch~2) \cite{pytorch2022} use different frontend contracts, optimization pipelines, and code-generation strategies, resulting in different compilation- and execution-time profiles.
 
-We evaluate this trade-off for native TVM, XLA, and TorchInductor ResNet implementations under a common outer sampling protocol. For \(n\) executions, we use \(T_b(n)=a_b n+b_b=T_C+n\,T_X\), where \(b_b=T_C\) is the compilation-cost proxy and \(a_b=T_X\) is steady-state latency (Section~\ref{sec:methodology}). Minimizing the measured lines gives a descriptive deployment envelope for this hardware and software stack. Because the backends use native model implementations, layouts, parameter-binding contracts, and compilation APIs, the comparison is system-level rather than an isolation of compiler quality. We additionally evaluate a legal \textit{Conv--BatchNorm} fold as offline TorchInductor preprocessing.
+We evaluate this trade-off for native TVM, XLA, and TorchInductor implementations of ResNet-18/50, BERT, and GPT-2 under a common outer sampling protocol. For \(n\) executions, we use \(T_b(n)=a_b n+b_b=T_C+n\,T_X\), where \(b_b=T_C\) is the compilation-cost proxy and \(a_b=T_X\) is steady-state latency (Section~\ref{sec:methodology}). Minimizing the measured lines gives a descriptive deployment envelope for this hardware and software stack. Because the backends use native model implementations, layouts, parameter-binding contracts, and compilation APIs, the comparison is system-level rather than an isolation of compiler quality. We additionally evaluate a legal \tcode{Conv--BatchNorm} fold as offline TorchInductor preprocessing.
 
 \textbf{Contributions:}
 \begin{itemize}
     \item A repeated cold-process protocol and the amortized model \(T(n)=T_C+n\,T_X\) for reporting compilation--execution trade-offs;
     \item A \(K=5\) system-level characterization of native XLA, TorchInductor, and TVM stacks on ResNet-18/50, BERT, and GPT-2;
-    \item Artifact analysis (TVMScript, HLO, and Triton) and a correctness-audited TorchInductor \textit{Conv--BatchNorm} fold, including the withdrawal of an inapplicable BERT fold result.
+    \item Artifact analysis (TVMScript, HLO, and Triton), a correctness-audited TorchInductor \tcode{Conv--BatchNorm} fold, and a BERT fold-applicability audit that finds no legal \mbox{\tcode{LayerNorm--Linear}} pair in the evaluated encoder.
 \end{itemize}
 
 \section{Related Work}
@@ -83,7 +84,7 @@ Among graph-level approaches, \emph{Optimus} minimizes memory accesses over a co
 \section{Theoretical Background}
 \label{sec:background}
 
-Consider a sequence of operators $x_{k+1}=f_k(x_k)$ and $x_{k+2}=f_{k+1}(x_{k+1})$, in which each $f_i$ acts on tensors of a computation graph. We say that $f_k$ and $f_{k+1}$ are \emph{fusible} when there exists a single operator $h$ such that $h(x_k)=f_{k+1}(f_k(x_k))$ and the execution of $h$ preserves every observable semantics of the original sequence. In this case, the compiler performs the transformation $(f_k,f_{k+1})\Rightarrow h$, eliminating the materialization of intermediate tensors, reducing the number of kernel launches, and improving memory locality~\cite{chen2018tvm,liu2021dnnfusion}.
+Consider a sequence of operators $x_{k+1}=f_k(x_k)$ and $x_{k+2}=f_{k+1}(x_{k+1})$, in which each $f_i$ acts on tensors of a computation graph. We say that $f_k$ and $f_{k+1}$ are \emph{fusible} when there exists a single operator $h$ such that $h(x_k)=f_{k+1}(f_k(x_k))$ and the execution of $h$ preserves the observable semantics of the original sequence. In this case, the compiler performs the transformation $(f_k,f_{k+1})\Rightarrow h$, eliminating the materialization of intermediate tensors, reducing the number of kernel launches, and improving memory locality~\cite{chen2018tvm,liu2021dnnfusion}.
 
 As discussed in Section~\ref{sec:related}, this notion of fusibility is the computation-graph analogue of classical \emph{peephole optimization}: $h$ plays, for a window of graph operators, the role that an equivalent instruction plays for a window of three-address-code instructions. In ML models, however, operators handle multi-dimensional tensors and their definitions are often complex. We therefore distinguish kernel fusion from parameter folding. Equations~(III) and~(VIII) in Appendix~\ref{app:fusions} describe \tcode{BatchNorm+ReLU} fusion and inference-only \tcode{Conv--BatchNorm} reparameterization followed by ReLU. Equation~(X) gives a conditional affine \tcode{LayerNorm--Linear} reparameterization; our BERT audit found no legal instance of this last pattern.
 
@@ -101,18 +102,18 @@ In every case, the fusion decision involves an explicit trade-off: investing mor
 \section{Methodology}
 \label{sec:methodology}
 
-We compare \textit{TVM} \cite{chen2018tvm}, \textit{XLA} \cite{snider2023xla}, and \textit{TorchInductor} (PyTorch~2) \cite{pytorch2022} in a controlled environment, measuring \textbf{compilation time}, \textbf{average latency per execution}, and \textbf{fusion granularity}.
+We compare TVM \cite{chen2018tvm}, XLA \cite{snider2023xla}, and TorchInductor (PyTorch~2) \cite{pytorch2022} in a controlled environment, measuring a \textbf{backend-specific compilation-cost proxy}, the \textbf{average latency per execution}, and the \textbf{static structure of the generated artifacts}.
 
 \subsection{Experimental Environment}
 
-The repeated campaigns were run on Fedora~41, an AMD Ryzen~5~4600G CPU, 15.4~GiB of RAM, and an NVIDIA RTX~3050 with 8~GB of VRAM, using driver~580.105.08. The host \textit{nvcc} compiler was CUDA~12.6 (V12.6.77). Transformer measurements ran in the archived container on host kernel~6.17.10; every JSON records the effective Python, framework, and platform versions.
+The repeated campaigns were run on Fedora~41, an AMD Ryzen~5~4600G CPU, 15.4~GiB of RAM, and an NVIDIA RTX~3050 with 8~GB of VRAM, using driver~580.105.08. The host \tcode{nvcc} compiler was CUDA~12.6 (V12.6.77). Transformer measurements ran in the archived container on host kernel~6.17.10; every JSON records the effective Python, framework, and platform versions.
 
 \paragraph{Per-framework configuration.}
 For the \textbf{TVM} experiments, we used Python~3.11.13, cuDNN version~9.1 (via PyTorch), TVM~0.22.dev0 (commit~3b60f1c), LLVM~20.1.8, and CUDA~12.6 integrated into the TVM backend.
 
-For \textbf{XLA/TorchInductor}, the ResNet environment used Python~3.10.18. XLA used JAX/jaxlib~0.6.2 and PJRT (\tcode{jax-cuda12-pjrt}~0.6.2). Its CUDA plugin was built against cuDNN~9.8 and explicitly loaded the host cuDNN~9.11.0 at runtime; the packaged cuDNN~9.10.2 had produced intermittent convolution-plan failures on this machine. The repeated ResNet campaign uses XLA's default autotuner, records both build/runtime cuDNN versions, and retains a failed process only as retry metadata, never as a timing observation. The Transformer container uses Python~3.12.3 and Transformers~4.56.2: TorchInductor uses PyTorch~2.9.0+\tcode{cu128}, XLA uses JAX~0.6.2, and TVM~0.22.dev0 imports the PyTorch~2.5.1+\tcode{cu124} graph. The BERT fold-control audit in Table~\ref{tab:bert_ln_fold} uses the same pinned TorchInductor environment. Because compiler and model-library versions affect compilation cost and generated graphs, absolute times are compared only within the corresponding campaign and table.
+For \textbf{XLA/TorchInductor}, the ResNet environment used Python~3.10.18. XLA used JAX/jaxlib~0.6.2 and the PJRT GPU runtime plugin (\tcode{jax-cuda12-pjrt}~0.6.2). Its CUDA plugin was built against cuDNN~9.8 and explicitly loaded the host cuDNN~9.11.0 at runtime; the packaged cuDNN~9.10.2 had produced intermittent convolution-plan failures on this machine. The repeated ResNet campaign uses XLA's default autotuner, records both build/runtime cuDNN versions, and retains a failed process only as retry metadata, never as a timing observation. The Transformer container uses Python~3.12.3 and Transformers~4.56.2: TorchInductor uses PyTorch~2.9.0+\tcode{cu128}, XLA uses JAX~0.6.2, and TVM~0.22.dev0 imports the PyTorch~2.5.1+\tcode{cu124} graph. The BERT fold-control audit in Table~\ref{tab:bert_ln_fold} uses the same pinned TorchInductor environment. Because compiler and model-library versions affect compilation cost and generated graphs, absolute times are compared only within the corresponding campaign and table.
 
-The common outer conditions are FP32, the same GPU, inference mode, 10 warmups, 50 timed executions, explicit synchronization, and isolated cold processes. Backend-native layouts are retained: TorchInductor uses logical NCHW tensors in \tcode{channels\_last} memory format, XLA uses NHWC, and TVM uses NCHW. The TVM environment is isolated at version \tcode{0.22.dev0}.
+The common outer conditions are FP32, the same GPU, inference mode, 10 warmups, 50 timed executions, explicit synchronization, and isolated cold processes. Backend-native layouts are retained: TorchInductor uses logical NCHW tensors in \tcode{channels\_last} memory format, XLA uses NHWC, and TVM uses NCHW. The TVM environment is pinned to version \tcode{0.22.dev0}.
 
 \subsection{Models and Inputs}
 We evaluated \textbf{ResNet-18/50}, \textbf{BERT}, and \textbf{GPT-2}. Each ResNet input is written as \tcode{(N,C,H,W)}: batch size \(N\), number of channels \(C\), and spatial height and width \(H\times W\). Inputs for ResNets (CNNs): \tcode{(1,3,224,224)}, \tcode{(16,3,224,224)}, \tcode{(64,3,224,224)}, \tcode{(1,3,512,512)}, \tcode{(1,3,1024,1024)}. BERT uses \tcode{(batch, seq\_len)} pairs \tcode{(1,64)}, \tcode{(1,128)}, and \tcode{(8,128)}; GPT-2 uses \tcode{(1,16)}, \tcode{(1,128)}, \tcode{(8,128)}, and \tcode{(8,256)}.
@@ -121,47 +122,40 @@ TorchInductor and TVM use the same nominal \tcode{torchvision} ResNet definition
 
 For Transformers, TorchInductor and TVM start from the same Hugging Face base configurations, deterministic random weights, and input IDs; XLA uses the corresponding native Flax model. GPT-2 receives a fixed four-dimensional causal mask, avoiding a nested \tcode{vmap} masking path that PyTorch~2.5 cannot export. For TVM import only, the exported \tcode{aten.\_unsafe\_view} alias is normalized to the equivalent supported \tcode{aten.reshape}; no tensor values or shapes change.
 
-The \textbf{ResNet-18/50}, \textbf{BERT}, and \textbf{GPT-2} models were chosen because they represent distinct and complementary architectural patterns. The ResNets characterize classical convolutional architectures, with recurring \textit{Conv--BatchNorm--ReLU} chains, which are canonical cases for analyzing operator fusion in CNNs.
-
-BERT represents \textit{Transformer} architectures based on encoders, dominated by matrix multiplications, linear projections, normalizations, and activations, allowing us to evaluate fusion strategies on attention-centric graphs.
-
-GPT-2, in turn, exemplifies autoregressive \textit{decoder-only} models, with a more linear and repetitive computational flow, typical of generative models, in which fusion granularity directly affects inference latency.
-
-Together, these models allow us to analyze the behavior of fusion heuristics across different computational and architectural regimes.
+The three models cover complementary architectural regimes: the ResNets contribute the recurring \tcode{Conv--BatchNorm--ReLU} chains that are the canonical case for fusion in CNNs; BERT contributes an encoder graph dominated by matrix multiplications, linear projections, normalizations, and activations; and GPT-2 contributes the repetitive decoder-only flow of autoregressive generation.
 
 \subsection{Experimental Pipeline}
-\label{sec:pipeline}
 The repeated workflow adopts six outer stages shared by TVM, XLA, and TorchInductor for both convolutional and Transformer models.
 
 \paragraph{(1) Compilation.}
-For each \textit{(model, input, backend)} configuration, we perform \(K=5\) cold compilations in independent processes. TorchInductor's original and folded ResNet variants are also compiled in separate processes. TVM and XLA children compile only the optimized/JIT variant reported in the comparison, so an auxiliary variant cannot warm in-process compiler state first. Each process receives private TorchInductor, Triton, and JAX compiler-cache directories; persistent TorchInductor and JAX compilation caches are disabled. Model-weight files and the operating system page cache remain shared, and model loading is outside the timed interval. We report mean, sample standard deviation, and two-sided 95\% confidence intervals over the five process means. The independently compiled process---not an execution from an already compiled process---is the experimental unit. The separate BERT fold audit follows the same \(K=5\) cold-process protocol.
+For each (model, input, backend) configuration, we perform \(K=5\) cold compilations in independent processes. TorchInductor's original and folded ResNet variants are also compiled in separate processes. TVM and XLA children compile only the optimized/JIT variant reported in the comparison, so an auxiliary variant cannot warm in-process compiler state first. Each process receives private TorchInductor, Triton, and JAX compiler-cache directories; persistent TorchInductor and JAX compilation caches are disabled. Model-weight files and the operating system page cache remain shared, and model loading is outside the timed interval. We report mean, sample standard deviation, and two-sided 95\% confidence intervals over the five process means. The independently compiled process---not an execution from an already compiled process---is the experimental unit. The separate BERT fold audit follows the same \(K=5\) cold-process protocol.
 
 \paragraph{(2) Warmup and execution + graph capture.}
-Execution occurs in two phases: (i) a \textit{warmup} phase for runtime state and \textit{autotuning}; and (ii) synchronized timed executions. The benchmark additionally exports backend IR artifacts---optimized HLO (XLA), TVMScript/TIR (TVM), and generated Triton/Python wrappers (TorchInductor)---outside the steady-state timing window and collects structural call metadata when available.
+Execution occurs in two phases: (i) a warmup phase for runtime state and autotuning; and (ii) synchronized timed executions. The benchmark additionally exports backend IR artifacts---optimized HLO (XLA), TVMScript/TIR (TVM), and generated Triton/Python wrappers (TorchInductor)---outside the steady-state timing window and collects structural call metadata when available.
 
 \paragraph{(3) Analysis of kernel quantity and quality.}
-From the captured IRs, we perform a structural analysis of the \textit{kernels} generated by each backend. This stage includes quantifying the total number of \textit{kernels}, distinguishing between internal \textit{kernels} and external library calls, as well as qualitatively characterizing the fusions performed. This analysis allows us to evaluate fusion granularity and the degree of delegation to optimized libraries, providing structural context for interpreting the performance results.
+From the captured IRs, a Python script parses the generated program tree (TVMScript, HLO, and Triton wrappers) and quantifies the call-like units of each backend, separating units generated internally from external library calls. This analysis describes, within each stack, the static fusion structure and the degree of delegation to optimized libraries, providing structural context for interpreting the performance results.
 
 \paragraph{(4) Measurements and algebraic model.}
-The timing metrics are a backend-specific compilation-cost proxy and the average synchronized latency \(T_X\). In ResNet, each of the \(K=5\) isolated processes performs 10 warmups followed by 50 timed executions. Execution confidence intervals use Student's \(t\) distribution over the five process means; the 250 individual samples are retained as raw observations but are not treated as 250 independent compilations. For \textbf{TVM}, the proxy times graph passes and \tcode{relax.build} after FX tracing/import. For \textbf{TorchInductor} and \textbf{XLA}, it is estimated by
+The timing metrics are a backend-specific compilation-cost proxy and the average synchronized latency \(T_X\). In the ResNet campaign, each of the \(K=5\) isolated processes performs 10 warmups followed by 50 timed executions, and execution confidence intervals use Student's \(t\) distribution over the five process means. For \textbf{TVM}, the proxy times graph passes and \tcode{relax.build} after FX tracing/import. For \textbf{TorchInductor} and \textbf{XLA}, it is estimated by
 \[
 T_C=T_{\mathrm{first}}-T_X,
 \]
-where \(T_{\mathrm{first}}\) aggregates the backend's first compiled execution and \(T_X\) is steady-state latency. The estimator is applied within each process before aggregation. These operational windows follow the available backend APIs: they share the cold-process sampling design but do not include identical frontend work. Cross-backend \(T_C\) values and envelopes must therefore be interpreted as native-stack measurements under this harness, not as an isonomic comparison of compiler passes alone.
+where \(T_{\mathrm{first}}\) is the backend's first compiled execution and \(T_X\) is steady-state latency. The estimator is applied within each process before aggregation. These operational windows follow the available backend APIs: they share the cold-process sampling design but do not include identical frontend work. Cross-backend \(T_C\) values and envelopes must therefore be interpreted as native-stack measurements under this harness, not as an isonomic comparison of compiler passes alone.
 
 \textbf{\textit{Algebraic model.}}
 We use the following amortized model for compilation followed by repeated execution:
 \[
 T_b(n) = a_b\,n + b_b,
 \]
-where $b_b$ is the fixed cost of compilation and initial overhead, and $a_b$ is the average latency, allowing us to infer the inflection point for different backends as a function of the number of repetitions $n$. Equivalently, writing $b_b = T_C$ (compilation time) and $a_b = T_X$ (per-execution latency), the model reads $T_b(n) = T_C + n\,T_X$; this is the framework we use throughout to compare backends.
+where $b_b$ is the fixed cost of compilation and initial overhead, and $a_b$ is the average latency, allowing us to infer the inflection point for different backends as a function of the number of repetitions $n$. Equivalently, writing $b_b = T_C$ (the compilation-cost proxy) and $a_b = T_X$ (per-execution latency), the model reads $T_b(n) = T_C + n\,T_X$; this is the framework we use throughout to compare backends.
 
-The model \(T_b(n) = a_b n + b_b\), together with its \emph{lower envelope}---the curve that, for each value of \(n\), selects the smallest cost among all backends---helps explain the crossover points observed between the different \emph{backends}. Thus, the intersections of these functions indicate from which number of executions \(n\) each backend becomes more advantageous.
+The model \(T_b(n) = a_b n + b_b\), together with its \emph{lower envelope}---the curve that, for each value of \(n\), selects the smallest cost among all backends---helps explain the crossover points observed between the different backends. Thus, the intersections of these functions indicate from which number of executions \(n\) each backend becomes more advantageous.
 
-\paragraph{(5) Applying \textit{fold} and comparing regimes.}
-In addition to the standard models, we evaluate a \textit{fold} as offline preprocessing before TorchInductor graph capture. At inference, the valid ResNet transformation absorbs \tcode{BatchNorm} into the preceding \tcode{Conv}; the conditional Transformer derivation absorbs the affine part of \tcode{LayerNorm} into a subsequent \tcode{Linear}. The reparameterizations are algebraically exact up to floating-point rounding (Appendix~\ref{app:fusions}), but require all affected consumers to remain semantically compensated. A \tcode{LayerNorm} value also used by an identity residual edge cannot be absorbed only into one \tcode{Linear}.
+\paragraph{(5) Applying the fold and comparing regimes.}
+In addition to the standard models, we evaluate a fold as offline preprocessing before TorchInductor graph capture. At inference, the valid ResNet transformation absorbs \tcode{BatchNorm} into the preceding \tcode{Conv}; the conditional Transformer derivation absorbs the affine part of \tcode{LayerNorm} into a subsequent \tcode{Linear}. The reparameterizations are algebraically exact up to floating-point rounding (Appendix~\ref{app:fusions}), but require all affected consumers to remain semantically compensated. A \tcode{LayerNorm} value also used by an identity residual edge cannot be absorbed only into one \tcode{Linear}.
 
-Unlike operator fusion, which combines operations during \textit{codegen}, the \textit{fold} reparameterizes the model before graph capture. The fold tables report compiler cost after preprocessing and record transformation time separately; the deployment envelope adds the measured fold time to the folded intercept. Model loading remains outside both intervals, so neither is a full application-startup TTFB. On fixed model copies with nontrivial BatchNorm statistics, the folded outputs pass \tcode{allclose(rtol=1e-3, atol=1e-4)} with maximum absolute errors \(6.676\times10^{-6}\) (ResNet-18) and \(2.441\times10^{-4}\) (ResNet-50), and no BatchNorm modules remain.
+Unlike operator fusion, which combines operations during code generation, the fold reparameterizes the model before graph capture. The fold tables report compiler cost after preprocessing and record transformation time separately; the deployment envelope adds the measured fold time to the folded intercept. Model loading remains outside both intervals, so neither corresponds to a full application-startup latency. On fixed model copies with nontrivial BatchNorm statistics, the folded outputs pass \tcode{allclose(rtol=1e-3, atol=1e-4)} with maximum absolute errors \(6.676\times10^{-6}\) (ResNet-18) and \(2.441\times10^{-4}\) (ResNet-50), and no BatchNorm modules remain.
 
 For the folded configuration, \(T_f(n)=a_f n+b_f\), where the envelope sets \(b_f\) to measured fold preprocessing plus the subsequent compiler-cost proxy. The crossover point for which $\Delta T = T_f(n) - T_b(n) = 0$, where $T_b(n)$ is the cost without fold, is
 \begin{align*}
@@ -172,21 +166,12 @@ n_{\mathrm{cross}}
 We report a positive value only when the two point-estimate lines cross for \(n>0\). When \(b_f<b_b\) and \(a_f\leq a_b\), fold dominates for every non-negative \(n\); the figures use zero as a sentinel for this no-crossover case.
 
 \paragraph{(6) \texttt{JSON} construction.}
-For each \textit{(model, input, backend)}, including the models with \tcode{fold}, we generate a \tcode{JSON} that consolidates the benchmark state. It includes the experiment identification, time metrics, fused \textit{kernels}, and other metadata.
-
-\subsection{Execution per Compiler and Model}
-For each ResNet (\textbf{backend}, \textbf{model}, \textbf{input}) cell, we run the pipeline in five independent processes: backend-native model/input preparation outside the compiler timer, compilation under the boundary defined above, 10 \emph{warmups}, \(n=50\) synchronized timed executions, process-level statistics, and export of metrics, raw samples, retries, and IR artifacts.
-
-\subsection{Artifact Analysis Script (TVMScript, HLO, Triton)}
-We implemented a \textbf{Python script} that performs textual \emph{parsing} of the program tree and produces an artifact.
+For each (model, input, backend) configuration, including the folded models, we generate a \tcode{JSON} that consolidates the benchmark state: experiment identification, timing metrics, generated call-like units, and version metadata.
 
 \section{Evaluation}
-\label{sec_eval}
 
-All timing tables below come from repeated validation campaigns incorporated
-into this final version.\footnote{Each ResNet, BERT, and GPT-2 backend/input
-cell uses five isolated cold processes. The previous BERT fold claim was
-withdrawn after the audit showed that its matcher performed zero rewrites.}
+All timing tables below come from the repeated \(K=5\) cold-process
+campaigns described in Section~\ref{sec:methodology}.
 
 Throughout, \emph{internal units} are call-like units generated by the backend (TIR calls for TVM, Triton wrapper calls for TorchInductor, and HLO fusions for XLA), whereas \emph{external units} are calls delegated to libraries such as \tcode{cuDNN} or \tcode{cuBLAS}. These static IR categories provide structural context but are not a common hardware-kernel metric: an HLO fusion, a TIR function, and a Python-wrapper call need not map one-to-one to dynamic GPU launches.
 
@@ -230,7 +215,7 @@ In ResNet-18/50, the three native stacks reveal structural differences in genera
 
 \textbf{TVM} exhibits the largest static call-like census at the representative input. In its imported representation, convolutions and batch normalizations remain separate TIR functions in many blocks, while only shorter element-wise chains are combined. This is a property of the evaluated import and lowering path, not a universal limitation of TVM.
 
-\textbf{TorchInductor}'s inspected wrapper delegates convolutions to external calls and generates surrounding \textit{BatchNorm+ReLU} work with Triton. Moving from ResNet-18 to ResNet-50 increases the generated code and static wrapper-call census, which is associated with a larger compilation-cost proxy (Table~\ref{tab:resnet_compile_exec}).
+\textbf{TorchInductor}'s inspected wrapper delegates convolutions to external calls and generates surrounding \tcode{BatchNorm+ReLU} work with Triton. Moving from ResNet-18 to ResNet-50 increases the generated code and static wrapper-call census, which is associated with a larger compilation-cost proxy (Table~\ref{tab:resnet_compile_exec}).
 
 In XLA's optimized HLO, convolution, bias, normalization, and activation appear in cuDNN custom calls, yielding a smaller HLO-level census. XLA also closes model variables over the JIT function, unlike TorchInductor's dynamic module-parameter contract. The timing difference is therefore a native-stack result and cannot be attributed solely to fusion or pass ordering.
 
@@ -247,17 +232,15 @@ In XLA's optimized HLO, convolution, bias, normalization, and activation appear 
 }
 \end{table}
 
-The \textbf{BERT} model has a distinct fusion pattern that reflects its architecture centered on \textit{matmuls}~\cite{pati2021demystifying}, QKV (\textit{query--key--value}) projections, and normalization and activation operations.
+The \textbf{BERT} model has a distinct fusion pattern that reflects its architecture centered on matrix multiplications~\cite{pati2021demystifying}, QKV (query--key--value) projections, normalizations, and activations.
 
-\textbf{TVM}'s current BERT artifacts contain a larger static \tcode{call\_tir} census at the imported Relax/TIR level. Its observed compilation means are 7.9--8.3~s, while execution grows from 10.83~ms at \tcode{(1,64)} to 134.37~ms at \tcode{(8,128)}. These are properties of the evaluated import and lowering path, not universal TVM behavior.
+\textbf{TVM}'s current BERT artifacts contain a larger static \tcode{call\_tir} census at the imported Relax/TIR level. Its observed compilation means are 7.9--8.3~s, while execution grows from 10.83~ms at \tcode{(1,64)} to 134.37~ms at \tcode{(8,128)}.
 
-\textbf{TorchInductor} delegates matrix multiplications to external libraries such as cuBLAS \cite{pytorch2022} and generates surrounding Triton code. Its BERT compilation means are 9.0--10.5~s and its execution means are 4.95--41.76~ms. Generated-code summaries are identical across the five replicas of each cell, but this structural stability does not establish that a particular template caused the timing difference.
+\textbf{TorchInductor} delegates matrix multiplications to external libraries such as cuBLAS \cite{pytorch2022} and generates surrounding Triton code. Its BERT compilation means are 9.0--10.5~s and its execution means are 4.95--41.76~ms. Generated-code summaries are identical across the five replicas of each cell.
 
 \textbf{XLA}'s optimized HLO contains both fusion computations and custom calls. It has the lowest observed compilation and execution means in all three BERT inputs: 5.0--5.7~s and 3.56--29.88~ms, respectively. This ordering is a result for the measured native stacks; different frontend representations and parameter contracts prevent attributing it solely to fusion.
 
-The process, rather than an individual timed execution, is the experimental unit. Table~\ref{tab:bert_compile_exec} reports variability over the five independently compiled process means; all 250 per-iteration samples remain available in the artifact.
-
-In short, the BERT model highlights how architectural differences affect each compiler's strategy.
+Table~\ref{tab:bert_compile_exec} reports variability over the five independently compiled process means; all 250 per-iteration samples remain available in the artifact.
 
 \subsection{Autoregressive Attention-Based Models (GPT-2)}
 
@@ -274,15 +257,13 @@ In short, the BERT model highlights how architectural differences affect each co
 
 The GPT-2 blocks follow a relatively linear decoder-only pattern---autoregressive attention and MLP, each preceded by LayerNorm and followed by GELU activation, repeated across all layers \cite{radford2019language}.
 
-\textbf{TVM}'s imported GPT-2 IR has a larger static \tcode{call\_tir} census than its BERT import. TVM compilation means remain between 6.5 and 6.9~s, while its execution mean rises from 5.55~ms at \tcode{(1,16)} to 415.13~ms at \tcode{(8,256)}. The fixed-shape import is executable for all four inputs after the export normalization described in Section~\ref{sec:methodology}.
+\textbf{TVM}'s imported GPT-2 IR has a larger static \tcode{call\_tir} census than its BERT import. TVM compilation means stay between 6.5 and 6.9~s, while the execution mean rises from 5.55~ms at \tcode{(1,16)} to 415.13~ms at \tcode{(8,256)} (Table~\ref{tab:gpt2_compile_exec}). The fixed-shape import is executable for all four inputs after the export normalization described in Section~\ref{sec:methodology}.
 
-\textbf{TorchInductor} similarly delegates matrix multiplications and generates surrounding Triton code. Its compilation means are 8.9--9.7~s and execution means are 3.20--82.78~ms. The five replicas in each cell produce identical structural summaries, but the experiment does not isolate which generated component explains the timing.
+\textbf{TorchInductor} similarly delegates matrix multiplications and generates surrounding Triton code. Its compilation means are 8.9--9.7~s and execution means are 3.20--82.78~ms. The five replicas in each cell produce identical structural summaries.
 
 \textbf{XLA} combines HLO fusions with external-library integration. It has the lowest observed compilation and execution means in all four GPT-2 inputs: 3.5--5.9~s and 2.76--59.67~ms, respectively. These process-level results confirm the ordering on this software/hardware stack without establishing a universal compiler ranking.
 
-The current artifacts show different backend-specific structures for TorchInductor, TVM, and XLA, but their counting levels are not normalized and do not establish that fusion structure caused the observed GPT-2 timings.
-
-Across BERT and GPT-2, all 21 backend/input cells contain five independent cold-process observations and 250 synchronized execution samples. They support process-level uncertainty estimates for the measured stacks, while causal fusion claims still require a shared frontend and controlled ablations.
+Across BERT and GPT-2, all 21 backend/input cells contain five independent cold-process observations and 250 synchronized execution samples.
 
 \subsection{Fold}
 
@@ -309,9 +290,9 @@ Across BERT and GPT-2, all 21 backend/input cells contain five independent cold-
 \end{table}
 
 \paragraph{Fold (ResNets).}
-Applying the offline fold reduces the mean compiler-cost proxy in all ten ResNet inputs (Tables~\ref{tab:resnet18_fold_bn} and~\ref{tab:resnet50_fold_bn}): \(29.5\%\)--\(41.1\%\) for ResNet-18 and \(1.9\%\)--\(28.6\%\) for ResNet-50. The measured transformation itself takes 100--106~ms for ResNet-18 and 114--120~ms for ResNet-50. Two-sided Welch tests over the five independent process means, with Holm correction across the ten inputs, resolve nine compiler-only differences and the same nine fixed-cost differences after adding preprocessing. The exception is ResNet-50 at \tcode{(64,3,224,224)}, whose base compilation sample has high variance. Execution effects are smaller: no ResNet-18 difference is resolved, whereas ResNet-50 has Holm-resolved speedups at \tcode{(16,3,224,224)}, \tcode{(64,3,224,224)}, \tcode{(1,3,512,512)}, and \tcode{(1,3,1024,1024)}. These tests compare independently compiled variants; the 250 within-process timing samples are not treated as independent compilations.
+Applying the offline fold reduces the mean compiler-cost proxy in all ten ResNet inputs (Tables~\ref{tab:resnet18_fold_bn} and~\ref{tab:resnet50_fold_bn}): \(29.5\%\)--\(41.1\%\) for ResNet-18 and \(1.9\%\)--\(28.6\%\) for ResNet-50. The measured transformation itself takes 100--106~ms for ResNet-18 and 114--120~ms for ResNet-50. Two-sided Welch tests over the five independent process means, with Holm correction across the ten inputs, resolve nine compiler-only differences and the same nine fixed-cost differences after adding preprocessing. The exception is ResNet-50 at \tcode{(64,3,224,224)}, where the mean reduction is only 409~ms (\(-1.9\%\)) and the 95\% CI \([-1125,+307]\)~ms includes zero. Execution effects are smaller: no ResNet-18 difference is resolved, whereas ResNet-50 has Holm-resolved speedups at \tcode{(16,3,224,224)}, \tcode{(64,3,224,224)}, \tcode{(1,3,512,512)}, and \tcode{(1,3,1024,1024)}. These tests compare independently compiled variants; the 250 within-process timing samples are not treated as independent compilations.
 
-The structural evidence explains the compilation result without implying fewer runtime launches. In ResNet-18, the generated wrapper retains 18 Triton and 21 external calls after folding, while generated-code size falls by 38--44\% across repetitions. In ResNet-50, wrapper calls remain 50 Triton and 54 external calls, the number of distinct named Triton kernels falls from 21 to 19, and code size falls by about 37\%. Fifteen additional anonymous ResNet-50 autotuning stubs are excluded from runtime-call counts. Thus, the supported mechanism is reduced \emph{codegen} volume; attributing the variation across inputs to a particular compiler subsystem would require an additional ablation.
+The structural evidence explains the compilation result without implying fewer runtime launches. In ResNet-18, the generated wrapper retains 18--19 Triton and 21 external calls after folding, while generated-code size falls by 38--44\% across repetitions. In ResNet-50, wrapper calls remain 50 Triton and 54 external calls, the number of distinct named Triton kernels falls from 21 to 19, and code size falls by about 37\%. Fifteen additional anonymous ResNet-50 autotuning stubs are excluded from runtime-call counts. Thus, the supported mechanism is reduced code-generation volume; attributing the variation across inputs to a particular compiler subsystem would require an additional ablation.
 
 \begin{table}[h]
 \centering
@@ -327,13 +308,9 @@ The structural evidence explains the compilation result without implying fewer r
 \paragraph{Fold applicability (BERT).}
 Equation~(X) in Appendix~\ref{app:fusions} is exact for a true single-consumer \tcode{LayerNorm}\(\rightarrow\)\tcode{Linear} chain. The standard Hugging Face \tcode{BertModel} used here is instead post-LayerNorm: each encoder LayerNorm output is consumed both by subsequent projections and by an identity residual path. Absorbing \((\gamma,\beta)\) only into the projections would therefore change the residual and the model's inference function. No legal pair is present.
 
-We audited the original BERT scripts and re-ran a conservative fold-control that deep-copies the same graph but performs zero rewrites. The structural matcher finds zero adjacent \tcode{LayerNorm--Linear} siblings in this model; nevertheless, the superseded harness compiled the base and the unchanged ``folded'' copy sequentially in one process, allowing the second compilation to reuse compiler state. In the corrected experiment, base and control reproduce the submitted BERT model/input protocol but are compiled in distinct cold processes with identical seeds. All five artifacts per variant have the same structural census and code size; the 95\% CIs overlap for both compilation and execution in every input (Table~\ref{tab:bert_ln_fold}). The invalid earlier timing claim is therefore withdrawn and no value from that run is used in this paper. A future BERT fold experiment must target an architecture with a genuine single-consumer LayerNorm--Linear edge or explicitly compensate every residual consumer.
+We audited the original BERT scripts and re-ran a conservative fold-control that deep-copies the same graph but performs zero rewrites. The structural matcher finds zero adjacent \tcode{LayerNorm--Linear} siblings in this model; nevertheless, the superseded harness compiled the base and the unchanged ``folded'' copy sequentially in one process, allowing the second compilation to reuse compiler state. In the corrected experiment, base and control reproduce the submitted BERT model/input protocol but are compiled in distinct cold processes with identical seeds. All five artifacts per variant have the same structural census and code size; the 95\% CIs overlap for both compilation and execution in every input (Table~\ref{tab:bert_ln_fold}). No value from that superseded run is used in this paper. Both variants load the pretrained \tcode{bert-base-uncased} checkpoint, whereas Table~\ref{tab:bert_compile_exec} reports the randomly initialized configuration of the Transformer campaign; absolute times are therefore comparable only within each table. A future BERT fold experiment must target an architecture with a genuine single-consumer LayerNorm--Linear edge or explicitly compensate every residual consumer.
 
-In summary, the artifacts expose different backend structures: TVM generates most ResNet call-like units internally, TorchInductor combines Triton wrappers with external-library calls, and XLA combines HLO fusions with custom calls. Because the frontend graphs and counting levels differ, these observations are descriptive rather than a fusion-quality ranking.
-
-\textbf{TorchInductor} delegates convolutions and generates surrounding element-wise work through Triton. In the inspected XLA HLO, convolution, bias, normalization, and activation can appear in a cuDNN custom call. This difference is associated with the measured profiles but is confounded by native frontend and parameter-binding differences.
-
-The valid ResNet tests show that offline \textit{Conv--BatchNorm} preprocessing lowers TorchInductor compilation cost after preprocessing. This demonstrates a guarded frozen-weight specialization opportunity for the evaluated inference path, not that TorchInductor's internal passes execute in an incorrect order. Figure~\ref{fig:foldeq} summarizes the point-estimate deployment regimes.
+By contrast, the valid ResNet tests show that offline \tcode{Conv--BatchNorm} preprocessing lowers the TorchInductor compilation-cost proxy even after its own cost is added. This demonstrates a guarded frozen-weight specialization opportunity for the evaluated inference path, not that TorchInductor's internal passes execute in an incorrect order. Figure~\ref{fig:foldeq} summarizes the point-estimate deployment regimes.
 
 Execution-time effects are small and uncertain in ResNet-18, showing that \textbf{longer compilation does not, by itself, imply lower latency}. In ResNet-50, the folded point estimate is lower in every input, with four differences remaining resolved after correction for multiple comparisons. This motivates reporting both fixed cost and steady-state latency.
 
@@ -347,20 +324,16 @@ Figure~\ref{fig:foldeq} reports the point-estimate crossover \(n_{\mathrm{cross}
     \label{fig:foldeq}
 \end{figure}
 
-Where such a boundary appears, it marks where the preferred measured configuration changes, and its direction depends on both intercept and slope: an optimization with a higher fixed cost but lower latency pays after the crossover, whereas an offline fold with a lower post-preprocessing intercept but slightly higher latency pays before it. For the fold measured here neither case arises, since it is preferable in both terms; such point estimates can guide deployment only when the slope difference is sufficiently stable.
+Such point estimates can guide deployment only when the slope difference is sufficiently stable. We analyzed a single transformation---the inference-only \tcode{Conv--BatchNorm} fold---rather than the full pass pipeline, and the benchmark can be extended to other passes and models.
 
-We performed the analysis of the fusion pass in isolation, but the proposed benchmark can be extended to other passes and other models.
+\section{Proposed Benchmark}
 
-\subsection{Proposed Benchmark}
+We developed a benchmark in which the user chooses the model and its input---\((N,C,H,W)\) for the CNNs and (batch, sequence length) for the Transformers---and the system measures the backend-specific compilation-cost proxy and synchronized inference latency. It reports (i) the measured native stack with the lowest point-estimate total cost for a requested \(n\), and (ii) the corresponding ranges. These recommendations are conditional on the recorded machine, versions, flags, and native model contracts.
 
-We developed a \textit{benchmark} in which the user chooses the \textbf{model input} (\(N{\times}C{\times}H{\times}W\)) and the system measures the backend-specific compilation-cost proxy and synchronized inference latency. It reports (i) the measured native stack with the lowest point-estimate total cost for a requested \(n\), and (ii) the corresponding ranges. These recommendations are conditional on the recorded machine, versions, flags, and native model contracts.
-
-The benchmark standardizes the outer sampling conditions---named ResNet architecture, input shape, FP32 precision, GPU, inference mode, \(K=5\) isolated cold processes, 10 warmups, 50 synchronized iterations, and JSON serialization. It deliberately retains each backend's native model, layout, parameter binding, and compilation API. The resulting recommendation therefore applies to the measured software stacks; it must not be read as a controlled compiler-only comparison.
-
-We model the total cost of each \emph{backend} \(b\) as \(T_b(n)=a_b\,n + b_b\), where \(a_b\) is the \textbf{average time per inference} and \(b_b\) is the \textbf{compilation time}. By constructing the \textbf{lower envelope} of these lines, we obtain the \textbf{crossover points} and, consequently, the \textbf{dominance ranges} of each compiler.
+The benchmark standardizes the outer sampling conditions---named architecture, input shape, FP32 precision, GPU, inference mode, \(K=5\) isolated cold processes, 10 warmups, 50 synchronized iterations, and JSON serialization. It deliberately retains each backend's native model, layout, parameter binding, and compilation API. The resulting recommendation therefore applies to the measured software stacks; it must not be read as a controlled compiler-only comparison.
 
 \paragraph{Report (\texttt{JSON}) and quick reading.}
-The \textit{benchmark} generates a \texttt{JSON} report with the experiment context, raw process/timing measurements, failed XLA attempts, IR metadata, and the point-estimate \(T_b(n)\) recommendation. The artifact documentation gives the serialized field names.
+The benchmark generates a \tcode{JSON} report with the experiment context, raw process/timing measurements, failed XLA attempts, IR metadata, and the point-estimate \(T_b(n)\) recommendation. The artifact documentation gives the serialized field names.
 
 \begin{figure}[h]
     \centering
@@ -374,14 +347,14 @@ Each line starts at the backend-specific fixed-cost proxy \(b_b\), and its slope
 
 \section{Conclusion}
 
-This work applied a repeated cold-process protocol to native TorchInductor, XLA, and TVM stacks on ResNet-18/50, BERT, and GPT-2, and used the lower envelope of \(T_b(n)=a_b n+b_b\) as a deployment-oriented summary. The five-process estimates show that the preferred measured stack can change with \(n\): fixed compilation cost matters at small \(n\), whereas the smallest measured steady-state slope determines sufficiently large \(n\). Static fusion or call count alone does not predict that ordering. The cross-backend results characterize complete native stacks and do not isolate compiler quality because frontend graphs, layouts, parameter binding, and timed compilation boundaries differ.
+This work applied a repeated cold-process protocol to native TorchInductor, XLA, and TVM stacks on ResNet-18/50, BERT, and GPT-2, and used the lower envelope of \(T_b(n)=a_b n+b_b\) as a deployment-oriented summary. The five-process estimates show that the preferred measured stack can change with \(n\): fixed compilation cost matters at small \(n\), whereas the smallest measured steady-state slope determines the outcome for sufficiently large \(n\). Static fusion or call count alone does not predict that ordering. The cross-backend results characterize complete native stacks and do not isolate compiler quality because frontend graphs, layouts, parameter binding, and timed compilation boundaries differ.
 
 \paragraph{Limitations.}
-Although five independent cold compilations allow process-level uncertainty estimates, \(K=5\) remains small and all measurements come from one machine. An environment control found intermittent XLA convolution-plan failures with the Python environment's packaged cuDNN~9.10.2; the reported ResNet campaign instead loads the host cuDNN~9.11.0, for which the repeated grid records any remaining failed attempt. For the \(1024^2\) inputs, XLA's autotuner also rejects candidate plans whose workspaces exceed the 8-GB GPU, so its selected plan is hardware-memory constrained. The Transformer campaign uses random initial weights and fixed shapes in the archived container; its absolute values therefore apply to that recorded stack. Future work should increase \(K\), diversify hardware/software stacks, use trained checkpoints, and align frontend graphs and compilation boundaries.
+Although five independent cold compilations allow process-level uncertainty estimates, \(K=5\) remains small and all measurements come from one machine. The ResNet campaign also had to load the host cuDNN~9.11.0 to avoid the intermittent convolution-plan failures described in Section~\ref{sec:methodology}, and the repeated grid records any remaining failed attempt. For the \(1024^2\) inputs, XLA's autotuner also rejects candidate plans whose workspaces exceed the 8-GB GPU, so its selected plan is hardware-memory constrained. The Transformer campaign uses random initial weights and fixed shapes in the archived container; its absolute values therefore apply to that recorded stack. Future work should increase \(K\), diversify hardware/software stacks, use trained checkpoints, and align frontend graphs and compilation boundaries.
 
-Another limitation lies in the linearity assumption of the model \(T_b(n)=a_b n + b_b\) itself: by assuming that the per-batch cost is approximately constant and that all of the fixed cost is paid in the first batch, the model abstracts away cache effects, \emph{autotuning} strategies, and possible recompilations triggered by dynamic \emph{shapes}, which may make the effective behavior closer to a piecewise model than to a single line. In practice, the coefficients \(a_b\) and \(b_b\) should be read as summary statistics of the range of \(n\) that was measured, and not as exact predictions for any usage regime. Future work can refine this dimension by reporting goodness-of-fit metrics (for example, the regression's \(R^2\)) and by investigating nonlinear or \emph{piecewise} models in scenarios with greater temporal variability.
+Another limitation lies in the linearity assumption of the model \(T_b(n)=a_b n + b_b\) itself: by assuming that the per-batch cost is approximately constant and that all of the fixed cost is paid in the first batch, the model abstracts away cache effects, autotuning strategies, and possible recompilations triggered by dynamic shapes, which may make the effective behavior closer to a piecewise model than to a single line. In practice, the coefficients \(a_b\) and \(b_b\) should be read as summary statistics of the range of \(n\) that was measured, and not as exact predictions for any usage regime. Future work can refine this dimension by reporting goodness-of-fit metrics (for example, the regression's \(R^2\)) and by investigating nonlinear or piecewise models in scenarios with greater temporal variability.
 
-Beyond the comparison between backends, this work also evaluated \emph{fold} transformations in the \textbf{TorchInductor} graph, aiming to reduce the compilation cost without changing the model's semantics. In convolutional architectures (ResNet-18/50), folding \tcode{BatchNorm} into \tcode{Conv} reparameterizes the convolution's weights and biases and removes the explicit \tcode{BatchNorm} from the graph in \emph{eval} mode. This does not turn the \tcode{Conv+BatchNorm+ReLU} sequence into a single kernel---unlike XLA, which often delegates the whole chain to a single \emph{custom call}---but it reduces the volume of \emph{codegen}, since reparameterizing the \tcode{Conv} is much cheaper than generating a separate Triton kernel for \tcode{BN+ReLU}.
+Beyond the comparison between backends, this work also evaluated fold transformations in the \textbf{TorchInductor} graph, aiming to reduce the compilation cost without changing the model's semantics. In convolutional architectures (ResNet-18/50), folding \tcode{BatchNorm} into \tcode{Conv} reparameterizes the convolution's weights and biases and removes the explicit \tcode{BatchNorm} from the graph in \tcode{eval} mode. This does not turn the \tcode{Conv+BatchNorm+ReLU} sequence into a single kernel---unlike XLA, which often delegates the whole chain to a single custom call---but it reduces the volume of generated code, since reparameterizing the \tcode{Conv} is much cheaper than generating a separate Triton kernel for \tcode{BN+ReLU}.
 
 For attention-based models, the analogous \tcode{LayerNorm+Linear} reparameterization is valid only when every use of the affine LayerNorm output can be absorbed or compensated. The post-LayerNorm BERT encoder evaluated here violates this precondition because the same value also follows an identity residual edge. Its isolated control experiment consequently performs no rewrite and shows no resolved timing difference. This negative result narrows the optimization opportunity: an automatic compiler pass must prove the consumer and residual conditions rather than matching only adjacent operator names.
 
@@ -393,7 +366,7 @@ As a direct next step, a compiler pass could (i) specialize frozen \tcode{BatchN
 The artifact provides the benchmark source code, pinned Python environments, a GPU-enabled Docker image recipe, correctness and smoke tests, complete repeated cold-process ResNet and Transformer JSON grids, documented compiler-IR outputs, and scripts that regenerate the statistical analyses, tables, and plots. It is archived under the MIT License at \url{https://doi.org/10.5281/zenodo.21731237}, which will resolve to the specific deposited version; the development repository is mirrored at \url{https://github.com/kameczera/compilers-benchmark}. The README documents the hardware and software requirements, expected outputs, validation procedure, resource costs, and the commands needed for both a short functional check and the complete experiment.
 
 \section*{Acknowledgements}
-The authors used \textbf{ChatGPT (OpenAI, 2025)} as a support tool during the
+The authors used \textbf{ChatGPT}, a large language model from OpenAI, as a support tool during the
 preparation of this paper, restricted to the following purposes: refining the
 writing and checking textual coherence; reviewing the algebraic derivations of
 the kernel fusions in Appendix~\ref{app:fusions}; and assisting in writing and
