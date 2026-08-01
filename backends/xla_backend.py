@@ -2,18 +2,18 @@
 from __future__ import annotations
 import time, math, re
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 import jax, jax.numpy as jnp
 
 # --- imports robustos ---
 try:
-    from .common import now_ms, pretty_shape, estimate_energy_j, stats_ms
+    from .common import pretty_shape, estimate_energy_j, stats_ms
 except Exception:
     try:
-        from backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
+        from backends.common import pretty_shape, estimate_energy_j, stats_ms
     except Exception:
-        from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
+        from cnnbench.backends.common import pretty_shape, estimate_energy_j, stats_ms
 
 try:
     from ..models.resnet_jax import load_resnet18_from_flaxmodels, load_resnet50_from_flaxmodels
@@ -114,9 +114,6 @@ def run_xla(model_name: str = "resnet18",
     """
     if variant not in {"both", "fused"}:
         raise ValueError(f"unknown XLA variant: {variant}")
-
-    import time, math
-    from pathlib import Path
 
     def _now_s():
         return time.perf_counter()

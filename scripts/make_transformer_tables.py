@@ -39,7 +39,7 @@ def load(results_dir: Path, backend: str, model: str, batch: int, seq: int):
 def build(model: str, results_dir: Path) -> tuple[list[str], list[str]]:
     shapes = SHAPES[model]
     lines = [
-        f"% Gerado por scripts/make_transformer_tables.py — NÃO editar à mão",
+        "% Gerado por scripts/make_transformer_tables.py — NÃO editar à mão",
         "\\begin{tabular}{llcc}",
         "\\toprule",
         "\\textbf{Framework} & \\textbf{Input} & \\textbf{Comp.} & \\textbf{Exec.} \\\\",

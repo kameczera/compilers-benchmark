@@ -1,5 +1,7 @@
 # Ambientes e caches locais
 .venv*/
+# Worktrees de sessão: um `git add -A` grava isso como gitlink e quebra o clone.
+.claude/
 __pycache__/
 *.py[cod]
 .pytest_cache/

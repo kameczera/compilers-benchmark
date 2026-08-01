@@ -219,7 +219,6 @@ def _run_xla(args) -> dict[str, Any]:
 # TVM Relax
 # --------------------------------------------------------------------------
 def _run_tvm(args) -> dict[str, Any]:
-    import numpy as np
     import torch
     import tvm
     from tvm import relax

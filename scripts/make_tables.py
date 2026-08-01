@@ -165,7 +165,7 @@ def table_resnet(results) -> str:
             for model in MODELS:
                 v, why = cell(results, backend, model, shape)
                 if v is None:
-                    cols += [f"\\multicolumn{{1}}{{c}}{{---}}", f"\\multicolumn{{1}}{{c}}{{({why})}}"]
+                    cols += ["\\multicolumn{1}{c}{---}", f"\\multicolumn{{1}}{{c}}{{({why})}}"]
                 else:
                     compile_cell = fmt_compile(v)
                     exec_cell = fmt_exec(v)

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import time
 import math
-from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Tuple, Optional
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 def now_ms() -> float:
     return time.perf_counter() * 1000.0
@@ -67,26 +67,6 @@ def save_json(path: str, payload: Dict[str, Any]):
     with open(path, "w") as f:
         json.dump(payload, f, indent=2)
 
-def norm_minmax(values: List[float]) -> List[float]:
-    vals = [float(v) for v in values]
-    vmin, vmax = min(vals), max(vals)
-    if vmax - vmin < 1e-9:
-        return [0.5 for _ in vals]
-    return [(v - vmin) / (vmax - vmin) for v in vals]
-
-@dataclass
-class Weights:
-    compile_w: float
-    latency_w: float
-    energy_w: float
-
-def auto_weights(n_images: int) -> Weights:
-    if n_images <= 5000:
-        return Weights(compile_w=0.6, latency_w=0.3, energy_w=0.1)
-    if n_images <= 100_000:
-        return Weights(compile_w=0.3, latency_w=0.6, energy_w=0.1)
-    return Weights(compile_w=0.1, latency_w=0.8, energy_w=0.1)
-
 def nearest_shape(target, available):
     tn, tc, th, tw = target
     best = None
@@ -97,6 +77,23 @@ def nearest_shape(target, available):
             best_dist = d
             best = (n,c,h,w)
     return best
+
+# Variante fundida publicada por backend — é ela que entra no envelope T_b(n).
+_FUSED_VARIANT = {"xla": "fused_jit", "tvm": "fused"}
+_DEFAULT_FUSED_VARIANT = "fused_inductor"
+
+
+def _timing(rec: Dict[str, Any], compile_key: str = "compile_ms") -> Dict[str, float]:
+    """ttfb/exec/compile de uma variante. O intercepto cai para `compile_ms` e
+    depois para `ttfb_ms` nos backends que não separam compilação da primeira
+    execução."""
+    ttfb = float(rec.get("ttfb_ms", 0.0))
+    return {
+        "ttfb_ms": ttfb,
+        "exec_ms": float(rec.get("exec_ms", 0.0)),
+        "compile_ms": float(rec.get(compile_key, rec.get("compile_ms", ttfb))),
+    }
+
 
 def recommend(backends: Dict[str, Dict[str, Any]], *,
               target_shape: Tuple[int,int,int,int],
@@ -112,10 +109,6 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
     Considera 'inductor_fold' (quando houver) e salva um gráfico PNG
     marcando apenas as trocas reais de vencedor.
     """
-    import math, time
-    from pathlib import Path
-    from typing import List, Tuple, Dict, Any
-
     # ---------- 1) Coleta (inclui inductor_fold) ----------
     per_backend: Dict[str, Dict[str, float]] = {}
     for name, payload in backends.items():
@@ -130,56 +123,22 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
         if not avail:
             continue
 
-        sel = nearest_shape(target_shape, avail)
-        rec = shapes.get(pretty_shape(sel), {})
+        rec = shapes.get(pretty_shape(nearest_shape(target_shape, avail)), {})
         lname = name.lower()
 
-        if lname == "xla":
-            fused = rec.get("fused_jit", {})
-            if fused:
-                per_backend[name] = {
-                    "ttfb_ms": float(fused.get("ttfb_ms", 0.0)),
-                    "exec_ms": float(fused.get("exec_ms", 0.0)),
-                    "compile_ms": float(fused.get("compile_ms", fused.get("ttfb_ms", 0.0))),
-                }
-        elif lname == "tvm":
-            fused = rec.get("fused", {})
-            if fused:
-                per_backend[name] = {
-                    "ttfb_ms": float(fused.get("ttfb_ms", 0.0)),
-                    "exec_ms": float(fused.get("exec_ms", 0.0)),
-                    "compile_ms": float(fused.get("compile_ms", fused.get("ttfb_ms", 0.0))),
-                }
-        else:
-            fused_inductor = rec.get("fused_inductor", {})
-            if fused_inductor:
-                per_backend[name] = {
-                    "ttfb_ms": float(fused_inductor.get("ttfb_ms", 0.0)),
-                    "exec_ms": float(fused_inductor.get("exec_ms", 0.0)),
-                    "compile_ms": float(fused_inductor.get("compile_ms", fused_inductor.get("ttfb_ms", 0.0))),
-                }
-            fused_fold = rec.get("fused_fold_inductor", {})
-            if fused_fold:
-                per_backend[f"{name}_fold"] = {
-                    "ttfb_ms": float(fused_fold.get("ttfb_ms", 0.0)),
-                    "exec_ms": float(fused_fold.get("exec_ms", 0.0)),
-                    "compile_ms": float(
-                        fused_fold.get(
-                            "compile_plus_preprocess_ms",
-                            fused_fold.get(
-                                "compile_ms", fused_fold.get("ttfb_ms", 0.0)
-                            ),
-                        )
-                    ),
-                    "compiler_only_ms": float(
-                        fused_fold.get(
-                            "compile_ms", fused_fold.get("ttfb_ms", 0.0)
-                        )
-                    ),
-                    "fold_preprocess_ms": float(
-                        fused_fold.get("fold_preprocess_ms", 0.0)
-                    ),
-                }
+        fused = rec.get(_FUSED_VARIANT.get(lname, _DEFAULT_FUSED_VARIANT), {})
+        if fused:
+            per_backend[name] = _timing(fused)
+
+        # Só o TorchInductor publica a variante com BN dobrado em Conv, e o
+        # custo do próprio fold entra no intercepto.
+        fused_fold = {} if lname in _FUSED_VARIANT else rec.get("fused_fold_inductor", {})
+        if fused_fold:
+            per_backend[f"{name}_fold"] = {
+                **_timing(fused_fold, "compile_plus_preprocess_ms"),
+                "compiler_only_ms": _timing(fused_fold)["compile_ms"],
+                "fold_preprocess_ms": float(fused_fold.get("fold_preprocess_ms", 0.0)),
+            }
 
     if not per_backend:
         return {"error": "no backends collected"}
@@ -197,7 +156,7 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
     # ---------- 3) Interseções par-a-par (domínio n>=0) ----------
     def x_inter(l1, l2):
         # b1 + a1*n = b2 + a2*n  =>  n* = (b1 - b2) / (a2 - a1)
-        (n1, a1, b1), (n2, a2, b2) = l1, l2
+        (_, a1, b1), (_, a2, b2) = l1, l2
         denom = (a2 - a1)
         if abs(denom) < eps:
             return math.inf
@@ -218,10 +177,12 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
         # T(n) = b + a*n
         return ln[2] + ln[1] * n
 
+    def best_at(n: float) -> str:
+        return min(lines, key=lambda ln: eval_line(ln, n))[0]
+
     segments: List[Dict[str, Any]] = []
     for cp in check_points:
-        vals = [(nm, eval_line(ln, cp)) for ln in lines for nm in [ln[0]]]
-        best = min(vals, key=lambda t: t[1])[0]
+        best = best_at(cp)
         if not segments:
             segments.append({"n_start_real": 0.0, "n_start_int": 0, "backend": best})
         elif segments[-1]["backend"] != best:
@@ -230,10 +191,7 @@ def recommend(backends: Dict[str, Dict[str, Any]], *,
                              "backend": best})
 
     # ---------- 5) Melhor no n = runs_exec ----------
-    best_at_runs = None
-    if lines:
-        vals = [(nm, eval_line(ln, runs_exec)) for ln in lines for nm in [ln[0]]]
-        best_at_runs = min(vals, key=lambda t: t[1])[0]
+    best_at_runs = best_at(runs_exec) if lines else None
 
     # ---------- 6) Plot (apenas quebras reais) ----------
     plot_info = None

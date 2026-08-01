@@ -56,7 +56,7 @@ BENCH_QUICK_ARGS ?= --device cuda --model resnet18 --dtype fp32 --batch 1 --heig
         bert_audit bert_table transformers_audit transformers_tables \
         paper_tables paper_image paper_pdf \
         docker_build docker_verify docker_smoke docker_grid docker_export docker_verify_export \
-        clean_inductor_cache clean
+        clean_inductor_cache clean prune prune_check figures
 
 # Diretório dos JSONs medidos (entrada do make tables / saída do make grid)
 RESULTS_DIR ?= results/k5
@@ -106,6 +106,11 @@ help:
 	@echo "  make transformers_audit                      # BERT/GPT-2 nos tres backends (K=$(COMPILE_REPEATS))"
 	@echo "  make transformers_tables                     # tabelas BERT/GPT-2 dos JSONs"
 	@echo "  make cache_audit                            # audita caches + dumps K=5"
+	@echo "  make figures                                 # JSONs -> as cinco figuras do artigo"
+	@echo ""
+	@echo "Limpeza:"
+	@echo "  make prune_check                             # relata o regeneravel, sem apagar"
+	@echo "  make prune                                   # remove o regeneravel (~7 GB)"
 	@echo ""
 	@echo "Contêiner reproduzível:"
 	@echo "  make docker_build                            # cria $(DOCKER_IMAGE)"
@@ -349,3 +354,21 @@ clean_inductor_cache:
 
 clean:
 	rm -rf $(VENV_XLA) $(VENV_TVM) out_*.json env_reports/requirements_xla.lock.txt
+
+# Remove o que a grade regenera e o deposito nao arquiva. Nao toca em JSON de
+# resultado, tabela gerada nem IR referenciado por algum JSON: `prune` roda
+# `--check` antes de apagar e aborta se algo referenciado sumiria.
+#   - HLO nao-otimizado do XLA (~7 GB; regeneravel, ver README secao 7)
+#   - torch_compile_debug/, artifacts/, __pycache__/
+#   - diretorios de IR orfaos, de tentativas de campanha que falharam
+prune:
+	python3 scripts/prune_regenerable.py --apply
+
+prune_check:
+	python3 scripts/prune_regenerable.py --check
+
+# As cinco figuras do artigo saem dos mesmos JSONs K=5 que as tabelas. Rodam no
+# venv XLA porque dependem de matplotlib, ausente no Python do sistema.
+figures: xla_env
+	. $(VENV_XLA)/bin/activate && python scripts/plot_folds_en.py --results-dir $(RESULTS_DIR)
+	. $(VENV_XLA)/bin/activate && python scripts/plot_ir_figs_en.py --results-dir $(RESULTS_DIR)

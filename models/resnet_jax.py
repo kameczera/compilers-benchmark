@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
-from flax import linen as nn
-from typing import Any, Callable
-from flaxmodels.resnet import ResNet18, ResNet50
 
 def load_resnet18_from_flaxmodels(input_shape=(1, 224, 224, 3), dtype=jnp.float32):
     """Instancia ResNet18 do pacote flaxmodels. Retorna (apply_fn, variables, dummy_input)."""

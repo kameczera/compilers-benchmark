@@ -16,7 +16,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 # Precisa existir ANTES do primeiro `import torch` neste processo: desliga os
 # caches persistentes do TorchInductor (/tmp/torchinductor_$USER). Sem isso,

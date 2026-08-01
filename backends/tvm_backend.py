@@ -13,12 +13,12 @@ from tvm.tir import transform as tir_transform
 
 # --- imports robustos ---
 try:
-    from .common import now_ms, pretty_shape, estimate_energy_j, stats_ms
+    from .common import pretty_shape, estimate_energy_j, stats_ms
 except Exception:
     try:
-        from backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
+        from backends.common import pretty_shape, estimate_energy_j, stats_ms
     except Exception:
-        from cnnbench.backends.common import now_ms, pretty_shape, estimate_energy_j, stats_ms
+        from cnnbench.backends.common import pretty_shape, estimate_energy_j, stats_ms
 
 try:
     from ..models.resnet_torch import get_resnet

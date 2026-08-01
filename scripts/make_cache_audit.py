@@ -261,7 +261,7 @@ def main() -> None:
         "",
         "## Audit Summary",
         "",
-        f"- Complete backend/model/input cells: **30/30**.",
+        "- Complete backend/model/input cells: **30/30**.",
         f"- Cell/backend repeat units: **{cell_repeat_units}** (30 x 5).",
         f"- Raw compile observations: **{compile_observations}** (the Inductor "
         "base and folded variants are separate isolated processes).",

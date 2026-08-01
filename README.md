@@ -155,6 +155,9 @@ Modelo linear por backend \(T_b(n) = a_b\,n + b_b\), com `a_exec_ms` = latência
 │   ├── run_full_grid.sh       # Grade completa do artigo (todos backends × shapes) → results/
 │   ├── make_tables.py         # JSONs → tabelas LaTeX do artigo + summary.md (sem transcrição manual)
 │   ├── check_fold.py          # Valida o fold BN→Conv (0 BNs restantes + equivalência numérica)
+│   ├── plot_folds_en.py       # JSONs → equivalencia.png e envelope_exemplo.png
+│   ├── plot_ir_figs_en.py     # JSONs → fusion_rate.png e as duas figuras de kernels
+│   ├── prune_regenerable.py   # Remove o regenerável sem tocar em dado referenciado
 │   └── validate_artifact.py   # Preflight portátil e checklist estrito da versão arquivada
 ├── ARTIFACT_EVALUATION.md     # Roteiro curto para os avaliadores
 ├── CITATION.cff               # Metadados de citação
@@ -439,7 +442,30 @@ versões efetivamente carregadas em cada reprodução.
 ```bash
 make clean_inductor_cache   # caches do TorchInductor/Triton (ver §7)
 make clean                  # remove .venv_xla, .venv_tvm, out_*.json e locks
+make prune_check            # relata o que é regenerável, sem apagar
+make prune                  # remove o regenerável (tipicamente ~7 GB)
 ```
+
+O `prune` remove só o que a grade recria e o depósito não arquiva: os HLOs
+não-otimizados do XLA (§7), diretórios de IR órfãos de tentativas que falharam,
+`torch_compile_debug/`, `artifacts/` e `__pycache__/`. Ele **nunca** toca em JSON
+de resultado, tabela gerada, relatório de ambiente ou IR referenciado por algum
+JSON: antes de apagar ele recalcula o conjunto referenciado e aborta se a
+remoção fosse derrubar qualquer arquivo citado — exceto o HLO não-otimizado, que
+os JSONs citam mas o pacote declara como *declared but not archived*. Use
+`make prune_check` primeiro para ver o que sairia.
+
+## 10.1) Figuras do artigo
+
+As cinco figuras saem dos mesmos JSONs K=5 que alimentam as tabelas:
+
+```bash
+make figures    # equivalencia.png, envelope_exemplo.png, fusion_rate.png,
+                # kernels_interno.png, kernels_externo.png
+```
+
+O alvo roda no venv XLA porque os scripts dependem de matplotlib. Assim como as
+tabelas, nenhuma figura do artigo é montada à mão.
 
 ## 11) Artefato Docker
 

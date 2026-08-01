@@ -26,6 +26,7 @@ The artifact supports the following claims:
 | TorchInductor, XLA, and TVM can execute on the evaluator's CUDA GPU | One small run per backend | `make docker_smoke` |
 | The published ResNet protocol uses five isolated cold processes for every backend/model/input cell | Raw JSON metadata and complete-grid validator | `make artifact_submission_check` |
 | The paper tables and fold statistics are derived from raw JSON without manual transcription | Table generator and Welch/Holm script | container `tables`, then `make fold_stats` in the Python environment |
+| The five paper figures are regenerated from the same raw JSON grid | Figure generators reading `results/k5` | `make figures` |
 | The LayerNorm fold has no legal instance in post-LayerNorm BERT, so the control variant matches the base | Three K=5 audit JSONs in `results/bert_fold/` and the table they generate | `make bert_audit` then `make bert_table` |
 | The BERT and GPT-2 cross-backend tables come from the same repeated cold-process protocol as the ResNet grid | All 21 K=5 raw JSONs in `results/transformers/`; the table generator refuses incomplete coverage | `make transformers_audit` then `make transformers_tables` |
 
