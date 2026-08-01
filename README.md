@@ -5,7 +5,7 @@
 ## Artifact Status
 
 - **Artigo aceito:** [PDF camera-ready do artigo SBLP 2026](docs/sblp/main.pdf); a [fonte LaTeX](docs/sblp/main.tex) também acompanha o artefato.
-- **Versão persistente:** `https://doi.org/ZENODO_DOI_TBD` — DOI específico da versão. Enquanto a URL contiver `ZENODO_DOI_TBD`, o depósito ainda não está finalizado; depois da reserva, execute `make set_artifact_doi DOI=10.5281/zenodo.NUMERO` e reconstrua o PDF.
+- **Versão persistente:** <https://doi.org/10.5281/zenodo.21731237> — DOI específico desta versão do artefato, e não do registro "todas as versões".
 - **Repositório de desenvolvimento:** <https://github.com/kameczera/compilers-benchmark>.
 - **Licença:** [MIT](LICENSE), permitindo uso, modificação e redistribuição.
 - **Selos pretendidos:** *Available* (após depósito com DOI) e *Functional* (instalação reproduzível, verificações automáticas, smoke test dos três backends e reprodução completa).
@@ -514,7 +514,7 @@ biblioteca de referência e abortar sem ela, use `XLA_STRICT_CUDNN=1`.
 ### 11.1 Imagem pronta (pula o build)
 
 O build do zero leva 45--120 minutos porque compila o TVM do fonte. Para evitá-lo,
-o registro do Zenodo (`https://doi.org/ZENODO_DOI_TBD`) disponibiliza, após a publicação, a imagem já
+o registro do Zenodo (`https://doi.org/10.5281/zenodo.21731237`) disponibiliza, após a publicação, a imagem já
 construída como **arquivo separado**, `cnnbench-artifact.tar.gz`, ao lado do pacote
 do artefato — baixe apenas se quiser pular o build:
 

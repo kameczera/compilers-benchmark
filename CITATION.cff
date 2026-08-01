@@ -4,6 +4,7 @@ type: software
 title: "CNN Compilers Benchmark: Artifact for Gaps in Operator Fusion for Deep Learning Systems"
 version: 1.0.0
 license: MIT
+doi: 10.5281/zenodo.21731237
 repository-code: "https://github.com/kameczera/compilers-benchmark"
 authors:
   - family-names: Kamei

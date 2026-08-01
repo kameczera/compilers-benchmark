@@ -1,0 +1,72 @@
+This is BibTeX, Version 0.99e (TeX Live 2026)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: ACM-Reference-Format.bst
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Database file #1: ref.bib
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 9000 items from 6000.
+Reallocated glb_str_ptr (elt_size=4) to 20 items from 10.
+Reallocated global_strs (elt_size=200001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=4) to 20 items from 10.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Warning--empty address in pytorch2022
+Warning--empty address in canesche2025xnnc
+Warning--empty publisher in chen2018tvm
+Warning--empty address in chen2018tvm
+Warning--empty address in darte1999
+Warning--empty address in fraser1979peephole
+Warning--empty publisher in xla2017leary
+Warning--empty address in xla2017leary
+Warning--page numbers missing in both pages and numpages fields in xla2017leary
+Warning--empty address in liu2021dnnfusion
+Warning--empty publisher in pati2021demystifying
+Warning--empty address in pati2021demystifying
+Warning--no number and no volume in radford2019language
+Warning--page numbers missing in both pages and numpages fields in radford2019language
+Warning--empty publisher in wolf1991wolf
+Warning--empty address in wolf1991wolf
+You've used 12 entries,
+            6273 wiz_defined-function locations,
+            1598 strings with 21076 characters,
+and the built_in function-call counts, 14612 in all, are:
+= -- 1638
+> -- 536
+< -- 0
++ -- 187
+- -- 191
+* -- 1071
+:= -- 1441
+add.period$ -- 61
+call.type$ -- 12
+change.case$ -- 100
+chr.to.int$ -- 12
+cite$ -- 28
+duplicate$ -- 1330
+empty$ -- 929
+format.name$ -- 231
+if$ -- 3450
+int.to.chr$ -- 2
+int.to.str$ -- 1
+missing$ -- 53
+newline$ -- 140
+num.names$ -- 84
+pop$ -- 585
+preamble$ -- 1
+purify$ -- 196
+quote$ -- 0
+skip$ -- 495
+stack$ -- 0
+substring$ -- 1016
+swap$ -- 120
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 332
+warning$ -- 16
+while$ -- 80
+width$ -- 0
+write$ -- 274
+(There were 16 warnings)

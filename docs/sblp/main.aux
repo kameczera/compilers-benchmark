@@ -1,0 +1,108 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{wolf1991wolf}
+\citation{chen2018tvm,liu2021dnnfusion}
+\citation{xla2017leary,chen2018tvm,pytorch2022}
+\citation{canesche2025xnnc,darte1999}
+\citation{snider2023xla}
+\citation{chen2018tvm}
+\citation{pytorch2022}
+\citation{fraser1979peephole}
+\citation{cai2022optimus}
+\citation{liu2021dnnfusion}
+\citation{canesche2025xnnc}
+\citation{pytorch2022,chen2018tvm}
+\@writefile{toc}{\contentsline {section}{Abstract}{1}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{1}{section.2}\protected@file@percent }
+\newlabel{sec:related}{{2}{1}{Related Work}{section.2}{}}
+\citation{chen2018tvm,liu2021dnnfusion}
+\citation{liu2021dnnfusion,pytorch2022}
+\citation{pytorch2022,snider2023xla}
+\citation{chen2018tvm}
+\citation{snider2023xla}
+\citation{pytorch2022}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Theoretical Background}{2}{section.3}\protected@file@percent }
+\newlabel{sec:background}{{3}{2}{Theoretical Background}{section.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Methodology}{2}{section.4}\protected@file@percent }
+\newlabel{sec:methodology}{{4}{2}{Methodology}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Experimental Environment}{2}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Per-framework configuration.}{2}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Models and Inputs}{2}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Experimental Pipeline}{3}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:pipeline}{{4.3}{3}{Experimental Pipeline}{subsection.4.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{(1) Compilation.}{3}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{(2) Warmup and execution + graph capture.}{3}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{(3) Analysis of kernel quantity and quality.}{3}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{(4) Measurements and algebraic model.}{3}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{(5) Applying \textit  {fold} and comparing regimes.}{3}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{(6) \texttt  {JSON} construction.}{4}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Execution per Compiler and Model}{4}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Artifact Analysis Script (TVMScript, HLO, Triton)}{4}{subsection.4.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Evaluation}{4}{section.5}\protected@file@percent }
+\newlabel{sec_eval}{{5}{4}{Evaluation}{section.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Static call-like units in the optimized ResNet artifacts at input \tcode  {(1,3,224,224)}. The categories are backend-specific and are not a ranking or a direct count of dynamic GPU launches.}}{4}{figure.caption.11}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:fusion_rate}{{1}{4}{Static call-like units in the optimized ResNet artifacts at input \tcode {(1,3,224,224)}. The categories are backend-specific and are not a ranking or a direct count of dynamic GPU launches}{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces External-library call-like units in the optimized ResNet artifacts at input \tcode  {(1,3,224,224)}.}}{4}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:kernels_externo}{{2}{4}{External-library call-like units in the optimized ResNet artifacts at input \tcode {(1,3,224,224)}}{figure.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Residual Networks}{4}{subsection.5.1}\protected@file@percent }
+\citation{pati2021demystifying}
+\citation{pytorch2022}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces ResNet-18 and ResNet-50 native-stack \textbf  {compilation-cost proxy} and \textbf  {execution} time (mean $\pm $ sample sd over \(K=5\) independent process means, ms); each process uses 10 warmups and 50 synchronized executions. The lowest observed mean is marked in \textbf  {bold} only when its marginal 95\% process-level CI does not overlap either competitor. Compilation boundaries and native model contracts differ as described in Section\nonbreakingspace \ref {sec:methodology}.}}{5}{table.caption.14}\protected@file@percent }
+\newlabel{tab:resnet_compile_exec}{{1}{5}{ResNet-18 and ResNet-50 native-stack \textbf {compilation-cost proxy} and \textbf {execution} time (mean $\pm $ sample sd over \(K=5\) independent process means, ms); each process uses 10 warmups and 50 synchronized executions. The lowest observed mean is marked in \best {bold} only when its marginal 95\% process-level CI does not overlap either competitor. Compilation boundaries and native model contracts differ as described in Section~\ref {sec:methodology}}{table.caption.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Backend-generated call-like units in the optimized ResNet artifacts at input \tcode  {(1,3,224,224)}.}}{5}{figure.caption.13}\protected@file@percent }
+\newlabel{fig:kernels_interno}{{3}{5}{Backend-generated call-like units in the optimized ResNet artifacts at input \tcode {(1,3,224,224)}}{figure.caption.13}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces BERT --- \textbf  {compilation-cost proxy} and \textbf  {execution} time (mean $\pm $ sample sd over \(K=5\) independent process means, ms); each process uses 10 warmups and 50 synchronized executions.}}{5}{table.caption.15}\protected@file@percent }
+\newlabel{tab:bert_compile_exec}{{2}{5}{BERT --- \textbf {compilation-cost proxy} and \textbf {execution} time (mean $\pm $ sample sd over \(K=5\) independent process means, ms); each process uses 10 warmups and 50 synchronized executions}{table.caption.15}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Attention-Based Architectures (BERT)}{5}{subsection.5.2}\protected@file@percent }
+\citation{radford2019language}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces GPT-2 --- \textbf  {compilation-cost proxy} and \textbf  {execution} time (mean $\pm $ sample sd over \(K=5\) independent process means, ms); each process uses 10 warmups and 50 synchronized executions.}}{6}{table.caption.16}\protected@file@percent }
+\newlabel{tab:gpt2_compile_exec}{{3}{6}{GPT-2 --- \textbf {compilation-cost proxy} and \textbf {execution} time (mean $\pm $ sample sd over \(K=5\) independent process means, ms); each process uses 10 warmups and 50 synchronized executions}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Autoregressive Attention-Based Models (GPT-2)}{6}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Fold}{6}{subsection.5.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces ResNet-18 (TorchInductor) --- effect of folding BN into Conv. Compilation is mean \(\pm \) sample sd across \(K=5\) cold processes; execution entries are pooled means (ms).}}{6}{table.caption.17}\protected@file@percent }
+\newlabel{tab:resnet18_fold_bn}{{4}{6}{ResNet-18 (TorchInductor) --- effect of folding BN into Conv. Compilation is mean \(\pm \) sample sd across \(K=5\) cold processes; execution entries are pooled means (ms)}{table.caption.17}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces ResNet-50 (TorchInductor) --- effect of folding BN into Conv. Compilation is mean \(\pm \) sample sd across \(K=5\) cold processes; execution entries are pooled means (ms).}}{6}{table.caption.18}\protected@file@percent }
+\newlabel{tab:resnet50_fold_bn}{{5}{6}{ResNet-50 (TorchInductor) --- effect of folding BN into Conv. Compilation is mean \(\pm \) sample sd across \(K=5\) cold processes; execution entries are pooled means (ms)}{table.caption.18}{}}
+\@writefile{toc}{\contentsline {paragraph}{Fold (ResNets).}{6}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Fold applicability (BERT).}{6}{section*.21}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces BERT (TorchInductor) fold-applicability audit. Base and fold-control are identical because the post-LayerNorm residual graph has no safe LayerNorm\(\rightarrow \)Linear fold. Compilation is mean \(\pm \) sample sd across \(K=5\) isolated cold processes; execution is pooled mean \(\pm \) sd (ms).}}{7}{table.caption.20}\protected@file@percent }
+\newlabel{tab:bert_ln_fold}{{6}{7}{BERT (TorchInductor) fold-applicability audit. Base and fold-control are identical because the post-LayerNorm residual graph has no safe LayerNorm\(\rightarrow \)Linear fold. Compilation is mean \(\pm \) sample sd across \(K=5\) isolated cold processes; execution is pooled mean \(\pm \) sd (ms)}{table.caption.20}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Point-estimate regime between folded and original TorchInductor. ``Fold dominates'' means lower mean fixed cost (including preprocessing) and no higher mean execution; ``fold until \(n\)'' means that the original point-estimate line becomes lower after \(n\). No input yields a finite boundary under the \(K=5\) point estimates.}}{7}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:foldeq}{{4}{7}{Point-estimate regime between folded and original TorchInductor. ``Fold dominates'' means lower mean fixed cost (including preprocessing) and no higher mean execution; ``fold until \(n\)'' means that the original point-estimate line becomes lower after \(n\). No input yields a finite boundary under the \(K=5\) point estimates}{figure.caption.22}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5}Proposed Benchmark}{7}{subsection.5.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Report (\texttt  {JSON}) and quick reading.}{8}{section*.23}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Example benchmark plot using the \(K=5\) point estimates: lines \(T_b(n)=a_b n + b_b\) per measured configuration, with the lower envelope and crossover points. For ResNet-18 at \tcode  {(1,3,224,224)}, XLA has the lowest point-estimate cost up to \(n\approx 19{,}378\) and folded TorchInductor thereafter; TVM and the original TorchInductor variant never lie on this lower envelope. The folded intercept includes measured preprocessing.}}{8}{figure.caption.24}\protected@file@percent }
+\newlabel{fig:envelope_exemplo}{{5}{8}{Example benchmark plot using the \(K=5\) point estimates: lines \(T_b(n)=a_b n + b_b\) per measured configuration, with the lower envelope and crossover points. For ResNet-18 at \tcode {(1,3,224,224)}, XLA has the lowest point-estimate cost up to \(n\approx 19{,}378\) and folded TorchInductor thereafter; TVM and the original TorchInductor variant never lie on this lower envelope. The folded intercept includes measured preprocessing}{figure.caption.24}{}}
+\@writefile{toc}{\contentsline {paragraph}{How to read Figure\nonbreakingspace \ref {fig:envelope_exemplo}.}{8}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{8}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{8}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}Derivation of the Analyzed Fusion and Fold Transformations}{9}{appendix.A}\protected@file@percent }
+\newlabel{app:fusions}{{A}{9}{Derivation of the Analyzed Fusion and Fold Transformations}{appendix.A}{}}
+\bibstyle{ACM-Reference-Format}
+\bibdata{ref}
+\bibcite{pytorch2022}{{1}{2024}{{Ansel et~al\mbox  {.}}}{{}}}
+\bibcite{cai2022optimus}{{2}{2022}{{Cai et~al\mbox  {.}}}{{}}}
+\bibcite{canesche2025xnnc}{{3}{2025}{{Canesche et~al\mbox  {.}}}{{}}}
+\bibcite{chen2018tvm}{{4}{2018}{{Chen et~al\mbox  {.}}}{{}}}
+\bibcite{darte1999}{{5}{1999}{{Darte}}{{}}}
+\bibcite{fraser1979peephole}{{6}{1979}{{Fraser}}{{}}}
+\bibcite{xla2017leary}{{7}{2017}{{Leary and Wang}}{{}}}
+\bibcite{liu2021dnnfusion}{{8}{2021}{{Niu et~al\mbox  {.}}}{{}}}
+\bibcite{pati2021demystifying}{{9}{2021}{{Pati et~al\mbox  {.}}}{{}}}
+\bibcite{radford2019language}{{10}{2019}{{Radford et~al\mbox  {.}}}{{}}}
+\bibcite{snider2023xla}{{11}{2023}{{Snider and Liang}}{{}}}
+\bibcite{wolf1991wolf}{{12}{1991}{{Wolf and Lam}}{{}}}
+\newlabel{tocindent-1}{0pt}
+\newlabel{tocindent0}{0pt}
+\newlabel{tocindent1}{4.185pt}
+\newlabel{tocindent2}{10.34999pt}
+\newlabel{tocindent3}{0pt}
+\newlabel{tocindent4}{0pt}
+\newlabel{tocindent5}{0pt}
+\@writefile{toc}{\contentsline {section}{References}{10}{section*.33}\protected@file@percent }
+\newlabel{TotPages}{{10}{10}{}{page.10}{}}
+\gdef \@abspage@last{10}
