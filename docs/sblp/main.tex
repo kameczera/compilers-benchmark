@@ -85,7 +85,7 @@ Among graph-level approaches, \emph{Optimus} minimizes memory accesses over a co
 
 Consider a sequence of operators $x_{k+1}=f_k(x_k)$ and $x_{k+2}=f_{k+1}(x_{k+1})$, in which each $f_i$ acts on tensors of a computation graph. We say that $f_k$ and $f_{k+1}$ are \emph{fusible} when there exists a single operator $h$ such that $h(x_k)=f_{k+1}(f_k(x_k))$ and the execution of $h$ preserves every observable semantics of the original sequence. In this case, the compiler performs the transformation $(f_k,f_{k+1})\Rightarrow h$, eliminating the materialization of intermediate tensors, reducing the number of kernel launches, and improving memory locality~\cite{chen2018tvm,liu2021dnnfusion}.
 
-As discussed in Section~\ref{sec:related}, this notion of fusibility is the computation-graph analogue of classical \emph{peephole optimization}: $h$ plays, for a window of graph operators, the role that an equivalent instruction plays for a window of three-address-code instructions. In ML models, however, operators handle multi-dimensional tensors and their definitions are often complex. We therefore distinguish kernel fusion from parameter folding. Equations~(III) and~(VIII) in Appendix~\ref{app:fusions} describe \tcode{BatchNorm+ReLU} fusion and inference-only \tcode{Conv--BatchNorm} reparameterization followed by ReLU. Equation~(XIV) gives a conditional affine \tcode{LayerNorm--Linear} reparameterization; our BERT audit found no legal instance of this last pattern.
+As discussed in Section~\ref{sec:related}, this notion of fusibility is the computation-graph analogue of classical \emph{peephole optimization}: $h$ plays, for a window of graph operators, the role that an equivalent instruction plays for a window of three-address-code instructions. In ML models, however, operators handle multi-dimensional tensors and their definitions are often complex. We therefore distinguish kernel fusion from parameter folding. Equations~(III) and~(VIII) in Appendix~\ref{app:fusions} describe \tcode{BatchNorm+ReLU} fusion and inference-only \tcode{Conv--BatchNorm} reparameterization followed by ReLU. Equation~(X) gives a conditional affine \tcode{LayerNorm--Linear} reparameterization; our BERT audit found no legal instance of this last pattern.
 
 Kernel sequences may be left unfused because of legality, profitability, or backend restrictions~\cite{liu2021dnnfusion,pytorch2022}:
 \begin{itemize}
@@ -325,7 +325,7 @@ The structural evidence explains the compilation result without implying fewer r
 \end{table}
 
 \paragraph{Fold applicability (BERT).}
-Equation~(XIII) in Appendix~\ref{app:fusions} is exact for a true single-consumer \tcode{LayerNorm}\(\rightarrow\)\tcode{Linear} chain. The standard Hugging Face \tcode{BertModel} used here is instead post-LayerNorm: each encoder LayerNorm output is consumed both by subsequent projections and by an identity residual path. Absorbing \((\gamma,\beta)\) only into the projections would therefore change the residual and the model's inference function. No legal pair is present.
+Equation~(X) in Appendix~\ref{app:fusions} is exact for a true single-consumer \tcode{LayerNorm}\(\rightarrow\)\tcode{Linear} chain. The standard Hugging Face \tcode{BertModel} used here is instead post-LayerNorm: each encoder LayerNorm output is consumed both by subsequent projections and by an identity residual path. Absorbing \((\gamma,\beta)\) only into the projections would therefore change the residual and the model's inference function. No legal pair is present.
 
 We audited the original BERT scripts and re-ran a conservative fold-control that deep-copies the same graph but performs zero rewrites. The structural matcher finds zero adjacent \tcode{LayerNorm--Linear} siblings in this model; nevertheless, the superseded harness compiled the base and the unchanged ``folded'' copy sequentially in one process, allowing the second compilation to reuse compiler state. In the corrected experiment, base and control reproduce the submitted BERT model/input protocol but are compiled in distinct cold processes with identical seeds. All five artifacts per variant have the same structural census and code size; the 95\% CIs overlap for both compilation and execution in every input (Table~\ref{tab:bert_ln_fold}). The invalid earlier timing claim is therefore withdrawn and no value from that run is used in this paper. A future BERT fold experiment must target an architecture with a genuine single-consumer LayerNorm--Linear edge or explicitly compensate every residual consumer.
 
@@ -408,10 +408,10 @@ and the corresponding ACM, IEEE, and Springer guidelines.
 \section{Derivation of the Analyzed Fusion and Fold Transformations}
 \label{app:fusions}
 
-This appendix distinguishes one kernel-fusion expression from two conditional parameter-folding derivations. Throughout, $\odot$ denotes the element-wise (Hadamard) product, with broadcasting along the channel dimension when the operands' shapes differ.
+This appendix distinguishes one kernel-fusion expression from two conditional parameter-folding derivations. Throughout, $\odot$ denotes the element-wise (Hadamard) product, broadcast along the channel dimension when the operands' shapes differ.
 
 \subsection*{BatchNorm + ReLU}
-A widely known fusion combines a batch normalization (\tcode{BatchNorm}) followed by a rectified linear unit (\tcode{ReLU}). Let $X\in\mathbb{R}^{N\times C\times H\times W}$ be the activation tensor (batch, channels, spatial dimensions); $\mu\in\mathbb{R}^{C}$ and $\sigma^2\in\mathbb{R}^{C}$ the per-channel estimated mean and variance; $\gamma,\beta\in\mathbb{R}^{C}$ the learnable scale and shift; and $\varepsilon\in\mathbb{R}_{>0}$ the numerical-stability constant. \tcode{BatchNorm} computes
+This widely known fusion combines a batch normalization (\tcode{BatchNorm}) with a following rectified linear unit (\tcode{ReLU}). Let $X\in\mathbb{R}^{N\times C\times H\times W}$ be the activation tensor (batch, channels, spatial dimensions); $\mu,\sigma^2\in\mathbb{R}^{C}$ the per-channel estimated mean and variance; $\gamma,\beta\in\mathbb{R}^{C}$ the learnable scale and shift; and $\varepsilon>0$ the numerical-stability constant. \tcode{BatchNorm} computes
 \begin{align}
 \text{(I)}\qquad Y = \frac{X-\mu}{\sqrt{\sigma^2+\varepsilon}}\odot\gamma + \beta .
 \end{align}
@@ -419,14 +419,14 @@ The \tcode{ReLU} is then applied element-wise to the output:
 \begin{align}
 \text{(II)}\qquad Z = \max(0, Y).
 \end{align}
-An unfused realization may use separate launches for (I) and (II), whereas a fused implementation can compute both in one kernel:
+An unfused realization may launch (I) and (II) separately, whereas a fused implementation computes both in one kernel:
 \begin{align}
 \text{(III)}\qquad y = \max\!\left(0,\ \gamma\cdot\frac{x-\mu}{\sqrt{\sigma^2+\varepsilon}}+\beta\right).
 \end{align}
-Modern deep-learning compilers cannot profitably or legally fuse every \tcode{BatchNorm+ReLU} pair because of dtype conversions, dynamic behavior, graph uses, and backend constraints (Section~\ref{sec:background}).
+Modern deep-learning compilers cannot fuse every such pair profitably or legally, for the reasons discussed in Section~\ref{sec:background}.
 
 \subsection*{Conv + BatchNorm + ReLU}
-In computer vision, the \tcode{Conv--BatchNorm--ReLU} chain contains two distinct opportunities. At inference, a fixed \tcode{BatchNorm} can be folded into the preceding convolution parameters $(\tilde{W},\tilde{b})$. Separately, a backend may implement \tcode{ReLU} as a convolution epilogue. The evaluated transformation performs the parameter fold only; it does not guarantee that convolution and activation execute in one kernel.
+In computer vision, the \tcode{Conv--BatchNorm--ReLU} chain contains two distinct opportunities: at inference, a fixed \tcode{BatchNorm} can be folded into the preceding convolution parameters $(\tilde{W},\tilde{b})$, and, separately, a backend may implement \tcode{ReLU} as a convolution epilogue. The evaluated transformation performs the parameter fold only.
 
 Formally, let $X\in\mathbb{R}^{N\times C_{in}\times H\times W}$ be the input and $W\in\mathbb{R}^{C_{out}\times C_{in}\times K_H\times K_W}$, $b\in\mathbb{R}^{C_{out}}$ the convolution parameters. The pre-activation output is
 \begin{align}
@@ -441,38 +441,22 @@ The \tcode{ReLU} (II) is then applied element-wise. We absorb the \tcode{BatchNo
 \text{(VI)}\quad \tilde{W}_{c,c',r,s} = \frac{\gamma_c}{\sqrt{\sigma_c^2+\varepsilon}}\,W_{c,c',r,s},\\
 \text{(VII)}\quad \tilde{b}_c = \frac{\gamma_c}{\sqrt{\sigma_c^2+\varepsilon}}\,(b_c-\mu_c) + \beta_c .
 \end{align}
-Substituting into $Y$ and applying \tcode{ReLU} yields the following equivalent expression, which a backend may implement as one convolution--activation operation:
+Substituting into $Y$ and applying \tcode{ReLU} yields an equivalent expression that a backend may implement as one convolution--activation operation:
 \begin{align}
 \text{(VIII)}\qquad Z_{n,c,h,w} = \max\!\left(0,\ \sum_{c'=1}^{C_{in}}\sum_{r,s}\tilde{W}_{c,c',r,s}\,X_{n,c',h+r,w+s}+\tilde{b}_c\right).
 \end{align}
 The benchmark guarantees only the reparameterization by $(\tilde{W},\tilde{b})$; whether Equation~(VIII) becomes one runtime kernel is backend-dependent.
 
 \subsection*{LayerNorm (Affine Part) + Linear}
-Conditionally, the affine part of \tcode{LayerNorm} (LN) can be reparameterized into every subsequent \tcode{Linear} consumer. For a single activation vector $h\in\mathbb{R}^{d}$, decompose LN into (i) normalization and (ii) scaling by $\gamma$ and shifting by $\beta$. Let
+Conditionally, the affine part of \tcode{LayerNorm} (LN) can be reparameterized into every subsequent \tcode{Linear} consumer. For an activation vector $h\in\mathbb{R}^{d}$, write the LN as $\tilde{h}=\gamma\odot\hat{h}+\beta$, where $\hat{h}=\mathrm{Norm}(h)$ is centered and normalized by the mean and variance of $h$, and $\gamma,\beta\in\mathbb{R}^{d}$ are the learnable scale and shift. For a \tcode{Linear} layer with weights $W\in\mathbb{R}^{m\times d}$ and bias $b\in\mathbb{R}^{m}$, expanding $y=W\tilde{h}+b=W(\gamma\odot\hat{h}+\beta)+b$ gives
 \begin{align}
-\text{(IX)}\qquad \hat{h} = \mathrm{Norm}(h)
+\text{(IX)}\qquad y = W\,\mathrm{diag}(\gamma)\,\hat{h} + (W\beta + b) .
 \end{align}
-be the purely normalizing part of the LN, i.e., the vector centered and normalized using the mean and variance of $h$. The full LN is
+Defining $W' = W\,\mathrm{diag}(\gamma)$ and $b' = W\beta + b$, the \tcode{LN + Linear} composition becomes
 \begin{align}
-\text{(X)}\qquad \tilde{h} = \gamma\odot\hat{h} + \beta,
+\text{(X)}\qquad y = W'\,\mathrm{Norm}(h) + b' .
 \end{align}
-where $\gamma,\beta\in\mathbb{R}^{d}$ are the learnable scale and shift parameters. Suppose a \tcode{Linear} layer with weights $W\in\mathbb{R}^{m\times d}$ and bias $b\in\mathbb{R}^{m}$ follows. Its output is
-\begin{align}
-\text{(XI)}\qquad y = W\tilde{h} + b = W\big(\gamma\odot\hat{h}+\beta\big)+b .
-\end{align}
-Expanding,
-\begin{align}
-\text{(XII)}\qquad y = \underbrace{W\,\mathrm{diag}(\gamma)}_{W'}\,\hat{h} + \underbrace{(W\beta + b)}_{b'} .
-\end{align}
-Defining
-\begin{align}
-\text{(XIII)}\qquad W' = W\,\mathrm{diag}(\gamma),\qquad b' = W\beta + b,
-\end{align}
-we rewrite the \tcode{LN + Linear} composition as
-\begin{align}
-\text{(XIV)}\qquad y = W'\,\mathrm{Norm}(h) + b' .
-\end{align}
-Thus, the affine part $(\gamma,\beta)$ can be absorbed only if every use of the affine output is removed or compensated. The post-LayerNorm BERT evaluated in this work violates that precondition through its residual uses, so Equation~(XIV) is a conditional derivation rather than a BERT optimization result.
+Absorbing $(\gamma,\beta)$ is thus legal only if every use of the affine output is removed or compensated, which the post-LayerNorm BERT evaluated here violates through its residual uses: Equation~(X) is a conditional derivation, not a BERT optimization result.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{ref}
